@@ -127,7 +127,7 @@ td.dim{color:var(--muted)}
 .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-weight:600}
 .pill.up{background:var(--pos-bg)} .pill.down{background:var(--neg-bg)} .pill.flat{color:var(--muted)}
 .tag{font-family:var(--f-body);font-size:.72rem;font-weight:600;letter-spacing:.06em;padding:2px 7px;border-radius:4px;border:1px solid currentColor}
-.tag.lecap{color:var(--accent)} .tag.boncap{color:var(--boncap)}
+.tag.lecap,.tag.boncer{color:var(--accent)} .tag.boncap,.tag.dual{color:var(--boncap)} .tag.lecer{color:var(--pos)} .tag.cupon{color:var(--manual)}
 
 /* Precio editable */
 td.pcell{padding:3px 6px}
@@ -266,7 +266,7 @@ details.editor[open] summary{margin-bottom:12px}
       <h2>Curva CER</h2>
       <p class="hint">TIR real contra duration modificada, con ajuste logarítmico.</p>
       <div class="chart" id="chartC"><svg id="svgC" role="img" aria-label="Curva CER"></svg><div class="tip" id="tipC" hidden></div></div>
-      <div class="legend"><span><i style="background:var(--accent)"></i>Bonos CER</span><span><i class="line"></i>Curva ajustada</span></div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>BONCER</span><span><i style="background:var(--pos)"></i>LECER</span><span><i style="background:var(--boncap)"></i>Dual (pata CER)</span><span><i style="background:var(--manual)"></i>TX28 (cupón)</span><span><i class="line"></i>Curva ajustada</span></div>
     </div>
     <div class="card">
       <div class="cardhead">
@@ -315,7 +315,30 @@ const LECAP_DEFAULT = [
 const CER_DEFAULT = [
   {t:"TZXO6", e:"2024-10-31", v:"2026-10-30"},
   {t:"X30N6", e:"2025-12-15", v:"2026-11-30"},
+  {t:"TZXD6", e:"2024-03-15", v:"2026-12-15"},
+  {t:"X29E7", e:"2026-08-13", v:"2027-01-29"},
+  {t:"TZXM7", e:"2024-05-17", v:"2027-03-31"},
+  {t:"TZXA7", e:"2025-11-28", v:"2027-04-30"},
+  {t:"TZXY7", e:"2025-12-15", v:"2027-05-31"},
+  {t:"TZX27", e:"2024-02-01", v:"2027-06-30"},
+  {t:"TZXS7", e:"2026-03-31", v:"2027-09-30"},
+  {t:"TZXD7", e:"2024-03-15", v:"2027-12-15"},
+  {t:"TZXM8", e:"2026-03-30", v:"2028-03-31"},
+  {t:"TZX28", e:"2024-02-01", v:"2028-06-30"},
+  {t:"TXMJ8", e:"2026-05-15", v:"2028-06-30"},
+  {t:"TZXS8", e:"2026-03-31", v:"2028-09-29"},
+  {t:"TX28",  e:"2020-09-04", v:"2028-11-09"},
+  {t:"TXMD8", e:"2026-06-12", v:"2028-12-15"},
+  {t:"TZXM9", e:"2026-03-31", v:"2029-03-28"},
+  {t:"TXMJ9", e:"2026-04-30", v:"2029-06-29"},
+  {t:"TXMD9", e:"2026-06-30", v:"2029-12-14"},
+  {t:"TXMJ0", e:"2026-06-12", v:"2030-06-28"},
 ];
+// Bonos con cupón: flujo por 100 VN original (sin ajustar). TX28: 2,25% anual 30/360, cupón 9/5 y 9/11, 10 amortizaciones semestrales desde 9/5/2024
+const CUPONES = {
+  TX28: {tasa: 2.25, desdeCupon: "2021-05-09", desdeAmort: "2024-05-09", cuotas: 10, meses: [5, 11], dia: 9},
+};
+const tipoCer = t => CUPONES[t] ? "CUPÓN" : t.startsWith("TXM") ? "DUAL" : t.startsWith("X") ? "LECER" : "BONCER";
 const FERIADOS_RESPALDO = ["2026-01-01","2026-02-16","2026-02-17","2026-03-23","2026-03-24","2026-04-02","2026-04-03",
   "2026-05-01","2026-05-25","2026-06-15","2026-06-20","2026-07-09","2026-07-10","2026-08-17","2026-10-12",
   "2026-11-09","2026-11-23","2026-12-07","2026-12-08","2026-12-25"];
@@ -327,7 +350,7 @@ const store = {
 
 const S = {
   lecaps: store.get("cb-lecaps", null) || LECAP_DEFAULT.map(x => ({...x})),
-  cer: store.get("cb-cer", null) || CER_DEFAULT.map(x => ({...x})),
+  cer: store.get("cb-cer-v3", null) || CER_DEFAULT.map(x => ({...x})),
   prefs: Object.assign({modo:"T+1", fecha:null, fuente:"c", vivo:true, cada:5, tab:"lecaps"}, store.get("cb-prefs", {})),
   manual: {},            // precios escritos a mano: {ticker: precio}
   precios: {}, prev: {}, movidos: new Set(), ultMov: null,
@@ -337,7 +360,7 @@ const S = {
   sort: {lecaps:{k:"dias", dir:1}, cer:{k:"dias", dir:1}},
   timer: null, datos: {},
 };
-const guardar = () => { store.set("cb-prefs", S.prefs); store.set("cb-lecaps", S.lecaps); store.set("cb-cer", S.cer); };
+const guardar = () => { store.set("cb-prefs", S.prefs); store.set("cb-lecaps", S.lecaps); store.set("cb-cer-v3", S.cer); };
 
 // ---------- Fechas ----------
 const hoyAR = () => new Date().toLocaleDateString("en-CA", {timeZone: TZ});
@@ -407,8 +430,10 @@ function cerEn(fecha){                        // valor en la fecha o el último 
   for (let k = 0; k < 10; k++, d--){ const v = S.cerSerie.get(iso(d)); if (v != null) return {fecha: iso(d), v}; }
   return null;
 }
+// Para curva y promedios ignoro tasas absurdas (precio mal tipeado, bono a días de vencer)
+const razonable = (f, k) => f[k] != null && isFinite(f[k]) && f[k] > -50 && f[k] < 300 && f.dm > 0.004;
 function ponerVsCurva(filas, key){
-  const conP = filas.filter(f => f[key] != null);
+  const conP = filas.filter(f => razonable(f, key));
   const fit = ajusteLog(conP.map(f=>f.dm), conP.map(f=>f[key]));
   if (fit) conP.forEach(f => f.vsc = (f[key] - (fit.a + fit.b*Math.log(f.dm))) * 100);
   return fit;
@@ -427,6 +452,32 @@ function calcLecaps(liq){
   filas.sort((a,b) => a.dias - b.dias);
   return {filas, fit: ponerVsCurva(filas, "tna")};
 }
+function flujoCupon(c, liq){
+  // fechas teóricas de pago (día c.dia de los meses c.meses) desde el primer cupón hasta el vencimiento
+  const fechas = []; let [y] = c.desdeCupon.split("-").map(Number);
+  for (; fechas.length < 200; y++) for (const m of c.meses){ const f = `${y}-${String(m).padStart(2,"0")}-${String(c.dia).padStart(2,"0")}`; if (f >= c.desdeCupon) fechas.push(f); }
+  const amortDesde = fechas.indexOf(c.desdeAmort), ult = amortDesde + c.cuotas - 1, cuota = 100 / c.cuotas;
+  const flujos = []; let resid = 100, ultimoCupon = null;
+  for (let k = 0; k <= ult; k++){
+    const f = fechas[k], am = k >= amortDesde ? cuota : 0, int = resid * c.tasa / 100 / 2;
+    if (f <= liq){ resid -= am; ultimoCupon = f; continue; }
+    flujos.push({fecha: habil(f, 0), dias: dn(habil(f, 0)) - dn(liq), cf: int + am});
+    resid -= am;
+  }
+  const residHoy = 100 - cuota * Math.max(0, fechas.filter((f, k) => k >= amortDesde && k <= ult && f <= liq).length);
+  const corrido = ultimoCupon ? residHoy * c.tasa / 100 * dias30360(ultimoCupon, liq) / 360 : 0;
+  return {flujos, vtReal: residHoy + corrido, residHoy};
+}
+function tirFlujo(flujos, precioReal){
+  if (!flujos.length || !(precioReal > 0)) return null;
+  const pv = y => flujos.reduce((a, f) => a + f.cf / Math.pow(1 + y, f.dias / 365), 0);
+  let lo = -0.9, hi = 5;
+  if (pv(lo) < precioReal || pv(hi) > precioReal) return null;
+  for (let i = 0; i < 200; i++){ const m = (lo + hi) / 2; if (pv(m) > precioReal) lo = m; else hi = m; }
+  const tir = (lo + hi) / 2, tot = pv(tir);
+  const mac = flujos.reduce((a, f) => a + (f.dias / 365) * f.cf / Math.pow(1 + tir, f.dias / 365), 0) / tot;
+  return {tir, dm: mac / (1 + tir)};
+}
 function calcCer(liq){
   const fechaAplic = habilAtras(liq, 10);
   const auto = cerEn(fechaAplic);
@@ -438,11 +489,17 @@ function calcCer(liq){
     const baseAuto = cerEn(habilAtras(i.e, 10));
     const base = i.cb > 0 ? +i.cb : baseAuto ? baseAuto.v : null;
     const {p, manual} = precioDe(i.t), q = S.precios[i.t];
-    const f = {t:i.t, p, manual, vivo: vivoDe(i.t), var: q ? q.pct_change : null, dias, v:i.v, base};
-    if (cerHoy && base){ f.coef = cerHoy / base; f.vt = 100 * f.coef; }
+    const f = {t:i.t, tipo: tipoCer(i.t), p, manual, vivo: vivoDe(i.t), var: q ? q.pct_change : null, dias, v:i.v, base};
+    const cup = CUPONES[i.t] ? flujoCupon(CUPONES[i.t], liq) : null;
+    if (cerHoy && base){ f.coef = cerHoy / base; f.vt = (cup ? cup.vtReal : 100) * f.coef; }
     if (p && f.coef){
-      const m = tasas(100 / (p / f.coef), dias);
-      Object.assign(f, {tir:m.tea*100, tna:m.tna*100, tem:m.tem*100, dm:m.dm, par: p / f.vt * 100});
+      if (cup){
+        const r = tirFlujo(cup.flujos, p / f.coef);
+        if (r) Object.assign(f, {tir:r.tir*100, tna:(Math.pow(1+r.tir, .5)-1)*200, tem:(Math.pow(1+r.tir, 1/12)-1)*100, dm:r.dm, par: p / f.vt * 100});
+      } else {
+        const m = tasas(100 / (p / f.coef), dias);
+        Object.assign(f, {tir:m.tea*100, tna:m.tna*100, tem:m.tem*100, dm:m.dm, par: p / f.vt * 100});
+      }
     }
     filas.push(f);
   }
@@ -536,13 +593,13 @@ function mejoresPeores(fs){
 function pintarTape(liq){
   const modo = S.prefs.modo === "Fecha" ? "fecha elegida" : S.prefs.modo;
   if (S.prefs.tab === "lecaps"){
-    const fs = S.datos.lecaps.filas.filter(f => f.tem != null);
+    const fs = S.datos.lecaps.filas.filter(f => razonable(f, "tna"));
     const prom = fs.length ? fs.reduce((a,f)=>a+f.tem,0)/fs.length : null;
     const top = fs.length ? fs.reduce((a,f) => f.tem > a.tem ? f : a) : null;
     tiles([["Liquidación", fFecha(liq), modo], ["TEM promedio", prom != null ? fmt(prom)+"%" : "—", `${fs.length} con precio`],
       ["Mayor TEM", top ? fmt(top.tem)+"%" : "—", top ? top.t : ""], ...mejoresPeores(fs)]);
   } else {
-    const d = S.datos.cer, fs = d.filas.filter(f => f.tir != null);
+    const d = S.datos.cer, fs = d.filas.filter(f => razonable(f, "tir"));
     const prom = fs.length ? fs.reduce((a,f)=>a+f.tir,0)/fs.length : null;
     tiles([["Liquidación", fFecha(liq), modo], ["CER aplicable", d.cerHoy ? fmt(d.cerHoy,4) : "—", S.cerManual > 0 ? "manual" : d.auto ? fFecha(d.auto.fecha) : "sin dato"],
       ["TIR real promedio", prom != null ? fmt(prom)+"%" : "—", `${fs.length} con precio`], ...mejoresPeores(fs)]);
@@ -560,7 +617,7 @@ function ticks(min, max, n = 5){
 function pintarCurva(ids, filas, yk, fit, ylab, colorDe, tipHtml){
   const svg = $(ids.svg), W = Math.max(320, $(ids.chart).clientWidth), H = W < 560 ? 300 : 360;
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-  const fs = filas.filter(f => f[yk] != null && f.dm > 0);
+  const fs = filas.filter(f => razonable(f, yk));
   if (!fs.length){ svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle">Sin precios para graficar</text>`; return; }
   const P = {l: 52, r: 18, t: 22, b: 40};
   const xMax = Math.max(...fs.map(f=>f.dm)) * 1.08;
@@ -607,6 +664,7 @@ const COLS = {
     {k:"t", h:"Ticker", l:true}, {k:"p", h:"Precio"}, {k:"var", h:"Var %"}, {k:"tir", h:"TIR real %", strong:true}, {k:"tna", h:"TNA real %"},
     {k:"tem", h:"TEM real %"}, {k:"dm", h:"Dur. Mod.", d:3}, {k:"vsc", h:"vs Curva (pb)"}, {k:"dias", h:"Días", d:0},
     {k:"coef", h:"Coef. CER", d:4}, {k:"vt", h:"Valor técnico", d:3}, {k:"par", h:"Paridad %"}, {k:"v", h:"Vencimiento"},
+    {k:"tipo", h:"Tipo", l:true},
   ],
 };
 function celdaInner(c, f){
@@ -616,7 +674,7 @@ function celdaInner(c, f){
     case "var": return x == null ? "–" : `<span class="pill ${signo(x)}">${flecha(x)} ${fmt(Math.abs(x))}</span>`;
     case "vsc": return x == null ? "–" : `<span class="pill ${Math.abs(x) < 5 ? "flat" : signo(x)}">${fPb(x)}</span>`;
     case "v": return fFecha(x);
-    case "tipo": return `<span class="tag ${x.toLowerCase()}">${x}</span>`;
+    case "tipo": return `<span class="tag ${({"CUPÓN":"cupon"})[x] || x.toLowerCase()}">${x}</span>`;
     case "dias": return String(x);
     default: return fmt(x, c.d ?? 2);
   }
@@ -650,7 +708,7 @@ function notaTabla(tab, filas){
   let t = `Precio en vivo: ${fu}. Tasas actual/365.`;
   if (man) t += ` ${man} con precio manual (en violeta).`;
   if (sin.length) t += ` Sin precio: ${sin.join(", ")}.`;
-  if (tab === "cer") t += " TIR real = (100 / (Precio / Coef. CER))^(365/días) − 1.";
+  if (tab === "cer") t += " Cupón cero: TIR real = (100 / (Precio / Coef. CER))^(365/días) − 1. Duales: pata CER (capital × coef. CER). TX28: TIR del flujo real de cupones y amortizaciones; su TNA es semestral.";
   $(tab === "lecaps" ? "notaL" : "notaC").textContent = t;
 }
 
@@ -699,7 +757,7 @@ function render(){
     const d = S.datos.cer;
     pintarCerBox(d);
     pintarCurva({svg:"svgC", chart:"chartC", tip:"tipC"}, d.filas, "tir", d.fit, "TIR real",
-      () => "var(--accent)",
+      f => ({DUAL:"var(--boncap)", LECER:"var(--pos)", "CUPÓN":"var(--manual)"})[f.tipo] || "var(--accent)",
       f => `<b>${esc(f.t)}</b>${f.manual ? " · manual" : ""}<br>TIR real ${fmt(f.tir)}% · TEM real ${fmt(f.tem)}%<br>Precio ${fmt(f.p,3)} · paridad ${fmt(f.par)}%<br>${f.dias} días${f.vsc != null ? ` · vs curva ${fPb(f.vsc)} pb` : ""}`);
     pintarTabla("cer", d.filas); notaTabla("cer", d.filas);
   }
