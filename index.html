@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Está Todo Bien Loko</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: mesa de trading — franja de controles arriba, cinta de indicadores, curva grande y tabla densa */
+:root{
+  --bg:#f3f6fa; --surface:#ffffff; --surface-2:#eaf0f7; --ink:#0f1b2d; --muted:#5a6a80; --line:#d6dee8;
+  --accent:#1f5fbf; --accent-soft:rgba(31,95,191,.12); --boncap:#b8650f;
+  --pos:#0f7a45; --pos-bg:rgba(15,122,69,.11); --neg:#bf3426; --neg-bg:rgba(191,52,38,.11);
+  --flash:rgba(232,176,30,.55); --sun:#d99a0b;
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0b121c; --surface:#111b28; --surface-2:#172435; --ink:#e4ecf5; --muted:#8798ae; --line:#22344a;
+  --accent:#6ea2ef; --accent-soft:rgba(110,162,239,.16); --boncap:#e7a24f;
+  --pos:#39c981; --pos-bg:rgba(57,201,129,.14); --neg:#ff6f5e; --neg-bg:rgba(255,111,94,.14);
+  --flash:rgba(240,190,60,.42); --sun:#f0bf3c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b121c; --surface:#111b28; --surface-2:#172435; --ink:#e4ecf5; --muted:#8798ae; --line:#22344a;
+  --accent:#6ea2ef; --accent-soft:rgba(110,162,239,.16); --boncap:#e7a24f;
+  --pos:#39c981; --pos-bg:rgba(57,201,129,.14); --neg:#ff6f5e; --neg-bg:rgba(255,111,94,.14);
+  --flash:rgba(240,190,60,.42); --sun:#f0bf3c; color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:20px 48px}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.num,td,th,input[type=number],.mono{font-variant-numeric:tabular-nums}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Encabezado */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px}
+.brand h1{font-family:var(--f-display);font-weight:800;font-size:clamp(1.6rem,3.6vw,2.3rem);letter-spacing:-.025em;line-height:1.05;margin:0;text-wrap:balance}
+.brand h1 .sol{color:var(--sun)}
+.brand p{margin:4px 0 0;color:var(--muted);font-size:.9rem}
+.status{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-family:var(--f-mono);font-size:.78rem}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--muted);white-space:nowrap}
+.chip b{color:var(--ink);font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.dot.on{background:var(--pos);box-shadow:0 0 0 0 var(--pos);animation:pulso 2s infinite}
+.dot.err{background:var(--neg)}
+@keyframes pulso{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--pos) 60%,transparent)}70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+
+/* Barra de controles */
+.controls{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:flex-end;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.ctl{display:flex;flex-direction:column;gap:5px;min-width:0}
+.ctl>span{font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface-2)}
+.seg button{border:0;background:transparent;padding:6px 12px;cursor:pointer;font-weight:500;font-size:.88rem;color:var(--muted)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+select,input[type=date],input[type=number],input[type=text]{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:.88rem;min-width:0}
+.btn{border:1px solid var(--line);background:var(--surface-2);border-radius:6px;padding:7px 13px;cursor:pointer;font-weight:500;font-size:.88rem}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{color:var(--neg)}
+.toggle{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:.88rem;padding-block:6px}
+.toggle input{appearance:none;width:34px;height:20px;border-radius:999px;background:var(--line);position:relative;cursor:pointer;margin:0;transition:background .2s}
+.toggle input::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--surface);transition:left .2s}
+.toggle input:checked{background:var(--pos)}
+.toggle input:checked::after{left:17px}
+.spacer{flex:1}
+
+/* Cinta de indicadores */
+.tape{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.tile{padding:12px 16px;min-width:0}
+.tile+.tile{border-left:1px solid var(--line)}
+.tile .lbl{font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.tile .val{font-family:var(--f-mono);font-weight:600;font-size:1.35rem;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .sub{font-family:var(--f-mono);font-size:.8rem;color:var(--muted)}
+.up{color:var(--pos)} .down{color:var(--neg)}
+
+/* Solapas */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tabs button{border:0;background:none;padding:10px 14px;cursor:pointer;font-family:var(--f-display);font-weight:700;font-size:.98rem;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.panel{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
+.card h2{font-family:var(--f-display);font-size:1.05rem;font-weight:700;margin:0 0 2px;letter-spacing:-.01em}
+.card .hint{margin:0 0 12px;color:var(--muted);font-size:.85rem}
+.note{color:var(--muted);font-size:.82rem;margin:0}
+.banner{padding:10px 14px;border-radius:8px;border:1px solid var(--neg);background:var(--neg-bg);font-size:.88rem}
+.banner[hidden]{display:none}
+
+/* Gráfico */
+.chart{position:relative;width:100%}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart text{font-family:var(--f-mono);font-size:11px;fill:var(--muted)}
+.chart .lab{fill:var(--ink);font-weight:600;font-size:11px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.82rem;color:var(--muted);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.legend i.line{border-radius:0;height:0;border-top:2px dashed var(--muted);width:16px;vertical-align:3px}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);padding:8px 10px;border-radius:6px;font-family:var(--f-mono);font-size:.78rem;line-height:1.45;white-space:nowrap;transform:translate(-50%,calc(-100% - 12px));z-index:5}
+.tip[hidden]{display:none}
+
+/* Tablas */
+.tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th{font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;text-align:right;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;user-select:none}
+th.l,td.l{text-align:left}
+th.sort{cursor:pointer}
+th.sort:hover{color:var(--ink)}
+th .arr{opacity:.8;margin-left:3px}
+td{font-family:var(--f-mono);text-align:right;padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+tbody tr:hover td{background:var(--accent-soft)}
+td.tk{font-family:var(--f-display);font-weight:700;font-size:.95rem;letter-spacing:.01em}
+td.strong{font-weight:600;color:var(--ink)}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-weight:600}
+.pill.up{background:var(--pos-bg)} .pill.down{background:var(--neg-bg)} .pill.flat{color:var(--muted)}
+.tag{font-family:var(--f-body);font-size:.72rem;font-weight:600;letter-spacing:.06em;padding:2px 7px;border-radius:4px;border:1px solid currentColor}
+.tag.lecap{color:var(--accent)} .tag.boncap{color:var(--boncap)}
+td.flash{animation:flash 2.4s ease-out}
+@keyframes flash{0%,25%{background:var(--flash)}100%{background:transparent}}
+@media (prefers-reduced-motion:reduce){td.flash{animation:none;background:var(--flash)}.dot.on{animation:none}}
+
+/* Forwards */
+.matrix td{font-size:.82rem;padding:6px 8px;min-width:58px}
+.matrix td.rowh,.matrix th.rowh{font-family:var(--f-display);font-weight:700;text-align:left;color:var(--ink);font-size:.82rem;letter-spacing:0;text-transform:none}
+.bars{display:flex;flex-direction:column;gap:8px}
+.bar{display:grid;grid-template-columns:minmax(120px,170px) 1fr 64px;gap:10px;align-items:center;font-size:.84rem}
+.bar .k{font-family:var(--f-mono);color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .track{height:14px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.bar .fill{height:100%;background:var(--accent);border-radius:3px}
+.bar .v{font-family:var(--f-mono);font-weight:600;text-align:right}
+
+/* Calculadora */
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.outs{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.outs .tile{border-left:0}
+.outs .tile+.tile{border-left:1px solid var(--line)}
+
+/* Instrumentos */
+.instr input{width:100%;min-width:92px}
+.instr td{padding:5px 6px}
+.instr .calc{color:var(--muted)}
+.row-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+/* Metodología */
+.steps{display:flex;flex-direction:column;gap:18px;max-width:72ch}
+.step h3{font-family:var(--f-display);font-size:.98rem;margin:0 0 4px}
+.step p{margin:0 0 8px}
+.formula{font-family:var(--f-mono);font-size:.9rem;background:var(--surface-2);border-left:3px solid var(--accent);padding:9px 12px;border-radius:0 6px 6px 0;overflow-x:auto;white-space:pre}
+
+@media (max-width:860px){
+  .tape{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tile+.tile{border-left:0}
+  .tape .tile{border-top:1px solid var(--line)}
+  .tape .tile:nth-child(-n+2){border-top:0}
+  .tape .tile:nth-child(even){border-left:1px solid var(--line)}
+  .tape .tile:last-child:nth-child(odd){grid-column:span 2}
+}
+@media (max-width:520px){
+  .controls .spacer{display:none}
+  .bar{grid-template-columns:110px 1fr 56px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <h1>Está Todo Bien Loko <span class="sol">☀</span></h1>
+      <p>Tasa fija en pesos · LECAP &amp; BONCAP · VN 100</p>
+    </div>
+    <div class="status" aria-live="polite">
+      <span class="chip"><span class="dot" id="dotVivo"></span><span id="txtVivo">Conectando…</span></span>
+      <span class="chip" id="chipMercado">Mercado —</span>
+      <span class="chip">Mov. <b id="txtMov">—</b></span>
+    </div>
+  </header>
+
+  <section class="controls" aria-label="Controles">
+    <div class="ctl">
+      <span>Liquidación</span>
+      <div class="seg" id="segLiq">
+        <button type="button" data-v="CI">CI</button>
+        <button type="button" data-v="T+1">T+1</button>
+        <button type="button" data-v="Fecha">Fecha</button>
+      </div>
+    </div>
+    <div class="ctl" id="ctlFecha" hidden>
+      <span>Fecha</span>
+      <input type="date" id="inFecha">
+    </div>
+    <div class="ctl">
+      <span>Precio</span>
+      <select id="selFuente">
+        <option value="c">Último</option>
+        <option value="px_bid">Compra (bid)</option>
+        <option value="px_ask">Venta (ask)</option>
+      </select>
+    </div>
+    <div class="ctl">
+      <span>TEM</span>
+      <select id="selConv" title="Base 30 días: (VF/P)^(30/días) − 1 · Mensual de la TEA: (1+TEA)^(1/12) − 1">
+        <option value="b30">Base 30 días</option>
+        <option value="tea">Mensual de la TEA</option>
+      </select>
+    </div>
+    <div class="spacer"></div>
+    <div class="ctl">
+      <span>Actualización</span>
+      <div class="row-actions">
+        <label class="toggle"><input type="checkbox" id="chkVivo" checked> En vivo</label>
+        <select id="selCada" aria-label="Cada cuánto consultar">
+          <option value="3">3 s</option><option value="5">5 s</option><option value="10">10 s</option>
+          <option value="30">30 s</option><option value="60">60 s</option>
+        </select>
+        <button type="button" class="btn" id="btnAct">Actualizar</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="banner" id="banner" role="alert" hidden></div>
+
+  <section class="tape" aria-label="Indicadores">
+    <div class="tile"><div class="lbl">Liquidación</div><div class="val" id="kLiq">—</div><div class="sub" id="kLiqSub">—</div></div>
+    <div class="tile"><div class="lbl">TEM promedio</div><div class="val" id="kTem">—</div><div class="sub" id="kTemSub">—</div></div>
+    <div class="tile"><div class="lbl">Mayor TEM</div><div class="val" id="kTop">—</div><div class="sub" id="kTopSub">—</div></div>
+    <div class="tile"><div class="lbl">Mejor del día</div><div class="val" id="kUp">—</div><div class="sub" id="kUpSub">—</div></div>
+    <div class="tile"><div class="lbl">Peor del día</div><div class="val" id="kDn">—</div><div class="sub" id="kDnSub">—</div></div>
+  </section>
+
+  <nav class="tabs" role="tablist" id="tabs">
+    <button role="tab" data-tab="curva" aria-selected="true">Curva y tabla</button>
+    <button role="tab" data-tab="forwards" aria-selected="false">Forwards</button>
+    <button role="tab" data-tab="calc" aria-selected="false">Calculadora</button>
+    <button role="tab" data-tab="instr" aria-selected="false">Instrumentos</button>
+    <button role="tab" data-tab="metodo" aria-selected="false">Metodología</button>
+  </nav>
+
+  <!-- CURVA Y TABLA -->
+  <section class="panel" data-panel="curva">
+    <div class="card">
+      <h2>Curva tasa fija</h2>
+      <p class="hint">TNA contra duration modificada. La línea punteada es el ajuste logarítmico TNA = a + b·ln(DM).</p>
+      <div class="chart" id="chart"><svg id="svgCurva" role="img" aria-label="Curva TNA vs duration"></svg><div class="tip" id="tip" hidden></div></div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>LECAP</span><span><i style="background:var(--boncap)"></i>BONCAP</span><span><i class="line"></i>Curva ajustada</span></div>
+    </div>
+    <div class="card">
+      <h2>Lecaps &amp; Boncaps</h2>
+      <p class="hint">Tocá un encabezado para ordenar. La celda de precio se ilumina cuando el bono operó desde la consulta anterior.</p>
+      <div class="tscroll"><table id="tbl"><thead></thead><tbody></tbody></table></div>
+      <p class="note" id="notaTabla" style="margin-top:10px"></p>
+    </div>
+  </section>
+
+  <!-- FORWARDS -->
+  <section class="panel" data-panel="forwards" hidden>
+    <div class="card">
+      <h2>Matriz de forwards</h2>
+      <p class="hint">TEM implícita entre dos vencimientos, base 30 días. Fila = desde, columna = hasta. La fila «Hoy» es la TEM de cada bono.</p>
+      <div class="tscroll"><table class="matrix" id="tblFwd"></table></div>
+    </div>
+    <div class="card">
+      <h2>Tramos consecutivos</h2>
+      <p class="hint">Si un tramo paga bastante más que sus vecinos, el bono largo de ese tramo está barato contra el corto.</p>
+      <div class="bars" id="bars"></div>
+    </div>
+  </section>
+
+  <!-- CALCULADORA -->
+  <section class="panel" data-panel="calc" hidden>
+    <div class="card">
+      <h2>Calculadora</h2>
+      <p class="hint" id="calcHint">Elegí un instrumento o cargá uno a mano.</p>
+      <div class="grid2">
+        <label class="ctl"><span>Instrumento</span><select id="cSel"></select></label>
+        <div class="ctl"><span>Quiero calcular</span>
+          <div class="seg" id="cModo">
+            <button type="button" data-v="p" aria-pressed="true">Precio → Tasas</button>
+            <button type="button" data-v="tem">TEM → Precio</button>
+            <button type="button" data-v="tna">TNA → Precio</button>
+          </div>
+        </div>
+      </div>
+      <div class="grid2" id="cManual" style="margin-top:14px" hidden>
+        <label class="ctl"><span>Vencimiento</span><input type="date" id="cVto"></label>
+        <label class="ctl"><span>Pago final (c/100 VN)</span><input type="number" id="cVf" step="0.0001" value="110"></label>
+      </div>
+      <div class="grid2" style="margin-top:14px">
+        <label class="ctl"><span id="cInLbl">Precio (c/100 VN)</span><input type="number" id="cIn" step="0.01"></label>
+      </div>
+      <div class="outs" id="cOuts" style="margin-top:16px"></div>
+    </div>
+    <div class="card">
+      <h2>Sensibilidad</h2>
+      <p class="hint">Cómo se mueve el precio si la TEM sube o baja algunos puntos básicos.</p>
+      <div class="tscroll"><table id="tblSens"></table></div>
+    </div>
+  </section>
+
+  <!-- INSTRUMENTOS -->
+  <section class="panel" data-panel="instr" hidden>
+    <div class="card">
+      <h2>Instrumentos</h2>
+      <p class="hint">Datos de emisión de cada letra. El pago final se calcula solo con la TEM de emisión (30/360 US); si cargás uno a mano, pisa al cálculo. El precio manual se usa solo cuando data912 no trae precio. Los cambios se guardan en este navegador.</p>
+      <div class="tscroll"><table class="instr" id="tblInstr"></table></div>
+      <div class="row-actions" style="margin-top:12px">
+        <button type="button" class="btn primary" id="btnAdd">Agregar instrumento</button>
+        <button type="button" class="btn" id="btnCopy">Copiar lista</button>
+        <button type="button" class="btn danger" id="btnReset">Restaurar originales</button>
+        <span class="note" id="instrMsg"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- METODOLOGÍA -->
+  <section class="panel" data-panel="metodo" hidden>
+    <div class="card">
+      <h2>Cómo calcula la página</h2>
+      <div class="steps" style="margin-top:10px">
+        <div class="step"><h3>Pago final (VF)</h3>
+          <p>Las LECAP y BONCAP capitalizan una TEM fija desde la emisión hasta el vencimiento. Los meses se cuentan con 30/360 US: cada mes vale 30 días, y el 31 del vencimiento pasa a 30 solo si la emisión cayó un 30 o 31.</p>
+          <div class="formula">VF = 100 × (1 + TEM_emisión) ^ (días_30/360 / 30)</div></div>
+        <div class="step"><h3>Liquidación</h3>
+          <p>CI es hoy (o el próximo hábil) y T+1 el hábil siguiente. Se saltean fines de semana y feriados nacionales, puentes incluidos. Los días al vencimiento son corridos desde la liquidación.</p></div>
+        <div class="step"><h3>Directo, TNA y TEA</h3>
+          <p>Con el precio P cada 100 VN:</p>
+          <div class="formula">Directo = VF / P − 1
+TNA     = Directo × 365 / días
+TEA     = (1 + Directo) ^ (365 / días) − 1</div></div>
+        <div class="step"><h3>TEM</h3>
+          <p>Depende de la convención elegida arriba. La mensual de la TEA da apenas más alta porque usa meses de 30,42 días (365/12) en lugar de 30.</p>
+          <div class="formula">Base 30 días:       TEM = (1 + Directo) ^ (30 / días) − 1
+Mensual de la TEA:  TEM = (1 + TEA) ^ (1/12) − 1</div></div>
+        <div class="step"><h3>Duration modificada</h3>
+          <p>En un cupón cero la duration de Macaulay es el plazo en años.</p>
+          <div class="formula">DM = (días / 365) / (1 + TEA)</div></div>
+        <div class="step"><h3>Curva y vs Curva</h3>
+          <p>Se ajusta TNA = a + b·ln(DM) por mínimos cuadrados. «vs Curva» es la diferencia en puntos básicos entre la TNA del bono y la de la curva en su duration: positivo rinde por encima (barato), negativo por debajo (caro).</p></div>
+        <div class="step"><h3>Forwards</h3>
+          <p>La TEM implícita entre dos vencimientos i &lt; j sale de no arbitraje:</p>
+          <div class="formula">TEM_fwd = ((VF_j/P_j) / (VF_i/P_i)) ^ (30 / (días_j − días_i)) − 1</div></div>
+        <div class="step"><h3>En vivo</h3>
+          <p>data912 no avisa cuando hay una operación: la página le consulta cada pocos segundos y compara contra la consulta anterior. Si un precio cambió, la celda se ilumina.</p></div>
+        <div class="step"><h3>Por qué puede no coincidir con otra fuente</h3>
+          <p>Precio distinto (último contra bid/ask, o el delay de cada proveedor), otra fecha de liquidación, otra convención de TEM, o un pago final calculado con otra cuenta de días.</p></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Ejemplo paso a paso</h2>
+      <p class="hint">Con los números en vivo del ticker que elijas.</p>
+      <label class="ctl" style="max-width:220px"><span>Ticker</span><select id="mSel"></select></label>
+      <div class="tscroll" style="margin-top:12px"><table id="tblEj"></table></div>
+    </div>
+  </section>
+
+  <p class="note">Precios: data912 · Feriados: ArgentinaDatos · Horario Argentina. Herramienta de cálculo; no es recomendación de inversión.</p>
+</div>
+
+<script>
+(() => {
+"use strict";
+const TZ = "America/Argentina/Buenos_Aires";
+const URLS_PRECIOS = ["https://data912.com/live/arg_notes", "https://data912.com/live/arg_bonds"];
+const URL_FERIADOS = y => `https://api.argentinadatos.com/v1/feriados/${y}`;
+
+const INSTR_DEFAULT = [
+  {t:"S30O6", e:"2025-10-31", v:"2026-10-30", tem:2.55},
+  {t:"S13N6", e:"2026-06-30", v:"2026-11-13", tem:2.10},
+  {t:"S30N6", e:"2025-12-15", v:"2026-11-30", tem:2.30},
+  {t:"T15E7", e:"2025-01-31", v:"2027-01-15", tem:2.05},
+  {t:"S29E7", e:"2026-08-31", v:"2027-01-29", tem:2.25},
+  {t:"T30A7", e:"2025-10-31", v:"2027-04-30", tem:2.55},
+  {t:"T31Y7", e:"2025-12-15", v:"2027-05-31", tem:2.40},
+  {t:"T30J7", e:"2026-01-16", v:"2027-06-30", tem:2.58},
+];
+// Respaldo si ArgentinaDatos no responde
+const FERIADOS_RESPALDO = ["2026-01-01","2026-02-16","2026-02-17","2026-03-23","2026-03-24","2026-04-02","2026-04-03",
+  "2026-05-01","2026-05-25","2026-06-15","2026-06-20","2026-07-09","2026-07-10","2026-08-17","2026-10-12",
+  "2026-11-09","2026-11-23","2026-12-07","2026-12-08","2026-12-25"];
+
+// ---------- Almacenamiento local (tolerante a fallos) ----------
+const store = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+
+// ---------- Estado ----------
+const S = {
+  instr: store.get("etbl-instr", null) || INSTR_DEFAULT.map(x => ({...x})),
+  prefs: Object.assign({modo:"T+1", fecha:null, fuente:"c", conv:"b30", vivo:true, cada:5, tab:"curva"}, store.get("etbl-prefs", {})),
+  precios: {}, prev: {}, movidos: new Set(), ultMov: null,
+  feriados: new Set(FERIADOS_RESPALDO),
+  estado: "cargando", hora: null,
+  sort: {k:"dias", dir:1},
+  calc: {sel:null, modo:"p", input:null},
+  timer: null, datos: null,
+};
+const guardarPrefs = () => store.set("etbl-prefs", S.prefs);
+const guardarInstr = () => store.set("etbl-instr", S.instr);
+
+// ---------- Fechas ----------
+const hoyAR = () => new Date().toLocaleDateString("en-CA", {timeZone: TZ});
+const horaAR = () => new Date().toLocaleTimeString("es-AR", {timeZone: TZ, hour12: false});
+const dn = s => { const [y,m,d] = s.split("-").map(Number); return Date.UTC(y, m-1, d) / 864e5; };
+const iso = n => new Date(n * 864e5).toISOString().slice(0, 10);
+const fFecha = s => s ? s.split("-").reverse().join("/") : "—";
+const esHabil = n => { const w = new Date(n * 864e5).getUTCDay(); return w !== 0 && w !== 6 && !S.feriados.has(iso(n)); };
+function habil(s, n = 0){ let d = dn(s); while (!esHabil(d)) d++; let k = n; while (k > 0){ d++; if (esHabil(d)) k--; } return iso(d); }
+function dias30360(e, v){
+  const [y1,m1,d1r] = e.split("-").map(Number), [y2,m2,d2r] = v.split("-").map(Number);
+  const d1 = Math.min(d1r, 30), d2 = (d2r === 31 && d1 >= 30) ? 30 : d2r;
+  return 360*(y2-y1) + 30*(m2-m1) + (d2-d1);
+}
+
+// ---------- Formato ----------
+const nf = {};
+function fmt(x, dec = 2){
+  if (x == null || !isFinite(x)) return "–";
+  nf[dec] ??= new Intl.NumberFormat("es-AR", {minimumFractionDigits: dec, maximumFractionDigits: dec});
+  return nf[dec].format(x);
+}
+const fPb = x => (x == null || !isFinite(x)) ? "–" : (x > 0 ? "+" : "") + fmt(x, 0);
+const signo = x => x > 0 ? "up" : x < 0 ? "down" : "flat";
+const flecha = x => x > 0 ? "▲" : x < 0 ? "▼" : "■";
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+// ---------- Cálculo ----------
+const vfCalc = i => 100 * Math.pow(1 + i.tem/100, dias30360(i.e, i.v) / 30);
+const vfDe = i => (i.vf > 0 ? +i.vf : vfCalc(i));
+const tipoDe = t => t.startsWith("T") ? "BONCAP" : "LECAP";
+function metricas(p, vf, dias, conv){
+  const dir = vf / p - 1;
+  const tna = dir * 365 / dias;
+  const tea = Math.pow(1 + dir, 365 / dias) - 1;
+  const tem = conv === "b30" ? Math.pow(1 + dir, 30 / dias) - 1 : Math.pow(1 + tea, 1/12) - 1;
+  const dm = (dias / 365) / (1 + tea);
+  return {dir, tna, tem, tea, dm};
+}
+const precioDesdeTem = (vf, dias, tem, conv) => conv === "b30" ? vf / Math.pow(1 + tem, dias/30) : vf / Math.pow(Math.pow(1 + tem, 12), dias/365);
+const precioDesdeTna = (vf, dias, tna) => vf / (1 + tna * dias / 365);
+function ajusteLog(xs, ys){
+  if (xs.length < 3) return null;
+  const lx = xs.map(Math.log), n = xs.length;
+  const mx = lx.reduce((a,b)=>a+b,0)/n, my = ys.reduce((a,b)=>a+b,0)/n;
+  let sxy = 0, sxx = 0;
+  for (let i = 0; i < n; i++){ sxy += (lx[i]-mx)*(ys[i]-my); sxx += (lx[i]-mx)**2; }
+  if (!sxx) return null;
+  const b = sxy / sxx; return {a: my - b*mx, b};
+}
+function liquidacion(){
+  const hoy = hoyAR(), m = S.prefs.modo;
+  if (m === "CI") return habil(hoy, 0);
+  if (m === "Fecha" && S.prefs.fecha) return habil(S.prefs.fecha, 0);
+  return habil(hoy, 1);
+}
+function calcular(){
+  const liq = liquidacion(), conv = S.prefs.conv, fuente = S.prefs.fuente;
+  const filas = [], sinPrecio = [];
+  for (const i of S.instr){
+    if (!i.t || !i.v || !i.e) continue;
+    const dias = dn(i.v) - dn(liq);
+    if (dias <= 0) continue;
+    const q = S.precios[i.t];
+    let p = q ? +q[fuente] : NaN, manual = false;
+    if (!(p > 0) && i.pm > 0){ p = +i.pm; manual = true; }
+    if (!(p > 0)){ sinPrecio.push(i.t); continue; }
+    const vf = vfDe(i), m = metricas(p, vf, dias, conv);
+    filas.push({t:i.t, tipo:tipoDe(i.t), p, manual, var: q ? q.pct_change : null, vol: q ? q.v : null,
+      tna:m.tna*100, tem:m.tem*100, tea:m.tea*100, dm:m.dm, dir:m.dir*100, dias, vf, v:i.v, e:i.e, temE:i.tem});
+  }
+  filas.sort((a,b) => a.dias - b.dias);
+  const fit = ajusteLog(filas.map(f=>f.dm), filas.map(f=>f.tna));
+  if (fit) filas.forEach(f => f.vsc = (f.tna - (fit.a + fit.b*Math.log(f.dm))) * 100);
+  return {liq, filas, fit, sinPrecio};
+}
+
+// ---------- Datos remotos ----------
+async function getJSON(url, ms = 8000){
+  const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), ms);
+  try { const r = await fetch(url, {signal: ctl.signal, cache: "no-store"}); if (!r.ok) throw new Error(r.status); return await r.json(); }
+  finally { clearTimeout(to); }
+}
+async function cargarFeriados(){
+  const y = +hoyAR().slice(0,4);
+  const res = await Promise.allSettled([getJSON(URL_FERIADOS(y)), getJSON(URL_FERIADOS(y+1))]);
+  res.forEach(r => { if (r.status === "fulfilled" && Array.isArray(r.value)) r.value.forEach(f => f.fecha && S.feriados.add(f.fecha)); });
+}
+async function cargarPrecios(){
+  const res = await Promise.allSettled(URLS_PRECIOS.map(u => getJSON(u)));
+  const ok = res.filter(r => r.status === "fulfilled" && Array.isArray(r.value));
+  S.hora = horaAR();
+  if (!ok.length){ S.estado = "error"; return; }
+  const nuevos = {};
+  ok.forEach(r => r.value.forEach(q => { if (q && q.symbol) nuevos[q.symbol] = q; }));
+  const f = S.prefs.fuente; S.movidos = new Set();
+  for (const i of S.instr){
+    const a = S.prev[i.t], b = nuevos[i.t] ? nuevos[i.t][f] : undefined;
+    if (a != null && b != null && a !== b) S.movidos.add(i.t);
+  }
+  if (S.movidos.size) S.ultMov = {hora: S.hora, t: [...S.movidos]};
+  S.prev = Object.fromEntries(S.instr.map(i => [i.t, nuevos[i.t] ? nuevos[i.t][f] : undefined]));
+  S.precios = nuevos; S.estado = "ok";
+}
+async function refrescar(){
+  await cargarPrecios();
+  render();
+}
+function programar(){
+  clearInterval(S.timer);
+  if (S.prefs.vivo) S.timer = setInterval(refrescar, S.prefs.cada * 1000);
+  pintarEstado();
+}
+
+// ---------- Render: estado ----------
+const $ = id => document.getElementById(id);
+function mercadoAbierto(){
+  const hoy = hoyAR(); if (!esHabil(dn(hoy))) return false;
+  const [h, m] = horaAR().split(":").map(Number), t = h*60 + m;
+  return t >= 11*60 && t < 17*60;
+}
+function pintarEstado(){
+  const dot = $("dotVivo"), txt = $("txtVivo");
+  dot.className = "dot" + (S.estado === "error" ? " err" : S.prefs.vivo && S.estado === "ok" ? " on" : "");
+  txt.textContent = S.estado === "cargando" ? "Conectando…" :
+    S.estado === "error" ? `Sin datos · ${S.hora || ""}` :
+    `${S.prefs.vivo ? "En vivo · " + S.prefs.cada + " s" : "En pausa"} · ${S.hora}`;
+  const ab = mercadoAbierto();
+  $("chipMercado").innerHTML = `Mercado <b class="${ab ? "up" : ""}">${ab ? "abierto" : "cerrado"}</b>`;
+  $("txtMov").textContent = S.ultMov ? `${S.ultMov.hora} ${S.ultMov.t.join(", ")}` : "—";
+  const b = $("banner");
+  if (S.estado === "error"){
+    b.hidden = false;
+    b.textContent = "No pude leer los precios de data912 desde este navegador. Podés cargar precios a mano en Instrumentos (columna «Precio manual») mientras tanto.";
+  } else b.hidden = true;
+}
+
+// ---------- Render: indicadores ----------
+function pintarTape(d){
+  $("kLiq").textContent = fFecha(d.liq);
+  $("kLiqSub").textContent = S.prefs.modo === "Fecha" ? "fecha elegida" : S.prefs.modo;
+  const fs = d.filas;
+  if (!fs.length){ ["kTem","kTop","kUp","kDn"].forEach(k => $(k).textContent = "—"); ["kTemSub","kTopSub","kUpSub","kDnSub"].forEach(k => $(k).textContent = ""); return; }
+  const prom = fs.reduce((a,f)=>a+f.tem,0)/fs.length;
+  $("kTem").textContent = fmt(prom) + "%";
+  $("kTemSub").textContent = `${fs.length} instrumentos`;
+  const top = fs.reduce((a,f) => f.tem > a.tem ? f : a);
+  $("kTop").textContent = fmt(top.tem) + "%"; $("kTopSub").textContent = top.t;
+  const cv = fs.filter(f => f.var != null && isFinite(f.var));
+  if (cv.length){
+    const up = cv.reduce((a,f) => f.var > a.var ? f : a), dn_ = cv.reduce((a,f) => f.var < a.var ? f : a);
+    $("kUp").textContent = up.t; $("kUpSub").innerHTML = `<span class="${signo(up.var)}">${flecha(up.var)} ${fmt(Math.abs(up.var))}%</span>`;
+    $("kDn").textContent = dn_.t; $("kDnSub").innerHTML = `<span class="${signo(dn_.var)}">${flecha(dn_.var)} ${fmt(Math.abs(dn_.var))}%</span>`;
+  } else { $("kUp").textContent = $("kDn").textContent = "—"; $("kUpSub").textContent = $("kDnSub").textContent = "sin variación"; }
+}
+
+// ---------- Render: gráfico ----------
+function ticks(min, max, n = 5){
+  const span = max - min || 1, raw = span / n, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1,2,2.5,5,10].map(s => s*mag).find(s => span/s <= n) || mag*10;
+  const out = []; for (let v = Math.ceil(min/step)*step; v <= max + 1e-9; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+function pintarCurva(d){
+  const svg = $("svgCurva"), W = Math.max(320, $("chart").clientWidth), H = W < 560 ? 300 : 380;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const fs = d.filas;
+  if (!fs.length){ svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle">Sin precios para graficar</text>`; return; }
+  const P = {l: 50, r: 18, t: 22, b: 40};
+  const xMax = Math.max(...fs.map(f=>f.dm)) * 1.08;
+  let yMin = Math.min(...fs.map(f=>f.tna)), yMax = Math.max(...fs.map(f=>f.tna));
+  const pad = Math.max(1, (yMax - yMin) * 0.18); yMin -= pad; yMax += pad;
+  const X = v => P.l + v / xMax * (W - P.l - P.r), Y = v => H - P.b - (v - yMin) / (yMax - yMin) * (H - P.t - P.b);
+  let g = "";
+  ticks(yMin, yMax).forEach(v => { if (v < yMin || v > yMax) return; g += `<line x1="${P.l}" x2="${W-P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${P.l-8}" y="${Y(v)+4}" text-anchor="end">${fmt(v, v % 1 ? 1 : 0)}%</text>`; });
+  ticks(0, xMax).forEach(v => { if (v > xMax) return; g += `<line x1="${X(v)}" x2="${X(v)}" y1="${P.t}" y2="${H-P.b}" stroke="var(--line)" stroke-dasharray="2 4"/><text x="${X(v)}" y="${H-P.b+18}" text-anchor="middle">${fmt(v, v % 1 ? 1 : 0)}</text>`; });
+  g += `<text x="${(P.l + W - P.r)/2}" y="${H-4}" text-anchor="middle">Duration modificada (años)</text>`;
+  if (d.fit){
+    const x0 = Math.min(...fs.map(f=>f.dm)), x1 = Math.max(...fs.map(f=>f.dm)); let path = "";
+    for (let k = 0; k <= 60; k++){ const x = x0 + (x1-x0)*k/60, y = d.fit.a + d.fit.b*Math.log(x); path += (k ? "L" : "M") + X(x).toFixed(1) + " " + Y(y).toFixed(1); }
+    g += `<path d="${path}" fill="none" stroke="var(--muted)" stroke-width="1.6" stroke-dasharray="5 5"/>`;
+  }
+  fs.forEach((f, i) => {
+    const c = f.tipo === "BONCAP" ? "var(--boncap)" : "var(--accent)";
+    const above = i % 2 === 0;
+    g += `<g class="pt" data-i="${i}" style="cursor:pointer"><circle cx="${X(f.dm)}" cy="${Y(f.tna)}" r="11" fill="transparent"/><circle cx="${X(f.dm)}" cy="${Y(f.tna)}" r="5.5" fill="${c}" stroke="var(--surface)" stroke-width="1.5"/>`
+       + `<text class="lab" x="${X(f.dm)}" y="${Y(f.tna) + (above ? -11 : 19)}" text-anchor="middle">${esc(f.t)}</text></g>`;
+  });
+  svg.innerHTML = g;
+  const tip = $("tip");
+  svg.querySelectorAll(".pt").forEach(el => {
+    const f = fs[+el.dataset.i];
+    const show = () => {
+      tip.innerHTML = `<b>${esc(f.t)}</b> · ${f.tipo}<br>TNA ${fmt(f.tna)}% · TEM ${fmt(f.tem)}%<br>Precio ${fmt(f.p,3)} · ${f.dias} días${f.vsc != null ? `<br>vs curva ${fPb(f.vsc)} pb` : ""}`;
+      const r = svg.getBoundingClientRect(), k = r.width / W;
+      tip.style.left = Math.min(Math.max(X(f.dm)*k, 90), r.width - 90) + "px"; tip.style.top = Y(f.tna)*k + "px"; tip.hidden = false;
+    };
+    el.addEventListener("pointerenter", show); el.addEventListener("click", show);
+    el.addEventListener("pointerleave", () => tip.hidden = true);
+  });
+}
+
+// ---------- Render: tabla ----------
+const COLS = [
+  {k:"t", h:"Ticker", l:true}, {k:"p", h:"Precio"}, {k:"var", h:"Var %"}, {k:"tna", h:"TNA %"}, {k:"tem", h:"TEM %"},
+  {k:"tea", h:"TEA %"}, {k:"dm", h:"Dur. Mod."}, {k:"vsc", h:"vs Curva (pb)"}, {k:"dias", h:"Días"}, {k:"vf", h:"Pago final"},
+  {k:"vol", h:"Volumen"}, {k:"v", h:"Vencimiento"}, {k:"tipo", h:"Tipo", l:true},
+];
+function celda(c, f){
+  switch (c.k){
+    case "t": return `<td class="l tk">${esc(f.t)}</td>`;
+    case "p": return `<td class="strong${S.movidos.has(f.t) ? " flash" : ""}" title="${f.manual ? "Precio manual" : ""}">${fmt(f.p,3)}${f.manual ? " ✎" : ""}</td>`;
+    case "var": return f.var == null ? `<td>–</td>` : `<td><span class="pill ${signo(f.var)}">${flecha(f.var)} ${fmt(Math.abs(f.var))}</span></td>`;
+    case "tem": return `<td class="strong">${fmt(f.tem)}</td>`;
+    case "dm": return `<td>${fmt(f.dm,3)}</td>`;
+    case "vsc": return f.vsc == null ? `<td>–</td>` : `<td><span class="pill ${Math.abs(f.vsc) < 5 ? "flat" : signo(f.vsc)}">${fPb(f.vsc)}</span></td>`;
+    case "dias": return `<td>${f.dias}</td>`;
+    case "vf": return `<td>${fmt(f.vf,4)}</td>`;
+    case "vol": return `<td>${f.vol == null ? "–" : fmt(f.vol,0)}</td>`;
+    case "v": return `<td>${fFecha(f.v)}</td>`;
+    case "tipo": return `<td class="l"><span class="tag ${f.tipo.toLowerCase()}">${f.tipo}</span></td>`;
+    default: return `<td>${fmt(f[c.k])}</td>`;
+  }
+}
+function pintarTabla(d){
+  const {k, dir} = S.sort;
+  const fs = [...d.filas].sort((a,b) => { const x = a[k], y = b[k]; if (x == null) return 1; if (y == null) return -1; return (x > y ? 1 : x < y ? -1 : 0) * dir; });
+  $("tbl").tHead.innerHTML = "<tr>" + COLS.map(c => `<th class="sort${c.l ? " l" : ""}" data-k="${c.k}">${c.h}${c.k === k ? `<span class="arr">${dir > 0 ? "↑" : "↓"}</span>` : ""}</th>`).join("") + "</tr>";
+  $("tbl").tBodies[0].innerHTML = fs.length ? fs.map(f => "<tr>" + COLS.map(c => celda(c, f)).join("") + "</tr>").join("")
+    : `<tr><td class="l" colspan="${COLS.length}">Sin instrumentos con precio. Revisá la pestaña Instrumentos.</td></tr>`;
+  const conv = S.prefs.conv === "b30" ? "base 30 días" : "mensual de la TEA";
+  const fu = {c:"último", px_bid:"compra (bid)", px_ask:"venta (ask)"}[S.prefs.fuente];
+  $("notaTabla").textContent = `Precio ${fu} · TEM ${conv}` + (d.sinPrecio.length ? ` · Sin precio: ${d.sinPrecio.join(", ")}` : "") + (fs.some(f=>f.manual) ? " · ✎ = precio manual" : "");
+}
+
+// ---------- Render: forwards ----------
+function pintarForwards(d){
+  const fs = d.filas;
+  if (fs.length < 2){ $("tblFwd").innerHTML = `<tr><td class="l">Necesito al menos 2 instrumentos con precio.</td></tr>`; $("bars").innerHTML = ""; return; }
+  const fact = fs.map(f => f.vf / f.p), n = fs.length;
+  const z = []; // z[i][j], i = 0 es Hoy
+  z.push(fs.map((f,j) => (Math.pow(fact[j], 30/f.dias) - 1) * 100));
+  for (let i = 0; i < n-1; i++) z.push(fs.map((f,j) => j > i && fs[j].dias > fs[i].dias ? (Math.pow(fact[j]/fact[i], 30/(fs[j].dias - fs[i].dias)) - 1) * 100 : null));
+  const vals = z.flat().filter(v => v != null && isFinite(v)), lo = Math.min(...vals), hi = Math.max(...vals);
+  const bg = v => { const t = hi > lo ? (v - lo) / (hi - lo) : .5; return `background:color-mix(in srgb, var(--accent) ${Math.round(8 + t*52)}%, transparent)`; };
+  let h = `<thead><tr><th class="rowh">Desde \\ Hasta</th>${fs.map(f => `<th>${esc(f.t)}</th>`).join("")}</tr></thead><tbody>`;
+  z.forEach((row, i) => {
+    h += `<tr><td class="rowh">${i === 0 ? "Hoy" : esc(fs[i-1].t)}</td>` + row.map(v => v == null ? "<td></td>" : `<td style="${bg(v)}">${fmt(v)}</td>`).join("") + "</tr>";
+  });
+  $("tblFwd").innerHTML = h + "</tbody>";
+  const tramos = [{k:`Hoy → ${fs[0].t}`, v:z[0][0]}];
+  for (let i = 0; i < n-1; i++) tramos.push({k:`${fs[i].t} → ${fs[i+1].t}`, v:z[i+1][i+1]});
+  const mx = Math.max(...tramos.map(t => t.v).filter(isFinite), 0.01);
+  $("bars").innerHTML = tramos.map(t => `<div class="bar"><span class="k">${esc(t.k)}</span><div class="track"><div class="fill" style="width:${Math.max(0, t.v/mx*100).toFixed(1)}%"></div></div><span class="v">${fmt(t.v)}%</span></div>`).join("");
+}
+
+// ---------- Render: calculadora ----------
+function pintarCalcSelect(d){
+  const sel = $("cSel"), opts = ["Manual", ...d.filas.map(f => f.t)];
+  const cur = S.calc.sel && opts.includes(S.calc.sel) ? S.calc.sel : (opts[1] || "Manual");
+  if (sel.dataset.list !== opts.join()){ sel.innerHTML = opts.map(o => `<option>${esc(o)}</option>`).join(""); sel.dataset.list = opts.join(); }
+  sel.value = cur; S.calc.sel = cur;
+}
+function pintarCalc(resetInput){
+  const d = S.datos; if (!d) return;
+  pintarCalcSelect(d);
+  const conv = S.prefs.conv, man = S.calc.sel === "Manual";
+  $("cManual").hidden = !man;
+  let vto, vf, pRef;
+  if (man){
+    if (!$("cVto").value) $("cVto").value = habil(hoyAR(), 90);
+    vto = $("cVto").value; vf = +$("cVf").value; pRef = 100;
+    $("calcHint").textContent = "Cargá vencimiento y pago final.";
+  } else {
+    const f = d.filas.find(x => x.t === S.calc.sel); vto = f.v; vf = f.vf; pRef = f.p;
+    $("calcHint").textContent = `${f.t} · vence ${fFecha(f.v)} · pago final ${fmt(f.vf,4)} · mercado ${fmt(f.p,3)} (${S.hora || "—"})`;
+  }
+  const dias = dn(vto) - dn(d.liq), inp = $("cIn");
+  if (!(dias > 0) || !(vf > 0)){ $("cOuts").innerHTML = `<div class="tile"><div class="sub">El vencimiento tiene que ser posterior a la liquidación.</div></div>`; $("tblSens").innerHTML = ""; return; }
+  const ref = metricas(pRef, vf, dias, conv), modo = S.calc.modo;
+  $("cInLbl").textContent = modo === "p" ? "Precio (c/100 VN)" : modo === "tem" ? "TEM objetivo %" : "TNA objetivo %";
+  inp.step = modo === "p" ? "0.01" : "0.05";
+  if (resetInput || inp.value === "") inp.value = (modo === "p" ? pRef : modo === "tem" ? ref.tem*100 : ref.tna*100).toFixed(modo === "p" ? 3 : 2);
+  const x = +inp.value;
+  const p = modo === "p" ? x : modo === "tem" ? precioDesdeTem(vf, dias, x/100, conv) : precioDesdeTna(vf, dias, x/100);
+  if (!(p > 0)){ $("cOuts").innerHTML = ""; return; }
+  const m = metricas(p, vf, dias, conv);
+  const dv = man ? "" : `<div class="sub ${signo(p/pRef-1)}">${fmt((p/pRef-1)*100)}% vs mercado</div>`;
+  $("cOuts").innerHTML = [
+    ["Precio", fmt(p,3), dv], ["Días", dias, ""], ["TNA", fmt(m.tna*100)+"%", ""], ["TEM", fmt(m.tem*100)+"%", ""], ["TEA", fmt(m.tea*100)+"%", ""], ["Dur. Mod.", fmt(m.dm,3), ""],
+  ].map(([l,v,s]) => `<div class="tile"><div class="lbl">${l}</div><div class="val">${v}</div>${s}</div>`).join("");
+  const pasos = [-50,-25,-10,0,10,25,50];
+  $("tblSens").innerHTML = `<thead><tr><th>Δ TEM (pb)</th><th>TEM %</th><th>Precio</th><th>Δ Precio %</th></tr></thead><tbody>` +
+    pasos.map(s => { const t = m.tem*100 + s/100, pp = precioDesdeTem(vf, dias, t/100, conv), dp = (pp/p - 1)*100;
+      return `<tr${s === 0 ? ' style="font-weight:600"' : ""}><td>${fPb(s)}</td><td>${fmt(t)}</td><td>${fmt(pp,3)}</td><td><span class="pill ${s === 0 ? "flat" : signo(dp)}">${fmt(dp)}</span></td></tr>`; }).join("") + "</tbody>";
+}
+
+// ---------- Render: instrumentos ----------
+function pintarInstr(){
+  const h = `<thead><tr><th class="l">Ticker</th><th class="l">Emisión</th><th class="l">Vencimiento</th><th>TEM emisión %</th><th>Pago final calc.</th><th>Pago final manual</th><th>Precio manual</th><th></th></tr></thead><tbody>` +
+    S.instr.map((i, k) => `<tr data-k="${k}">
+      <td><input type="text" id="in-t-${k}" data-f="t" value="${esc(i.t || "")}" style="min-width:80px;text-transform:uppercase"></td>
+      <td><input type="date" id="in-e-${k}" data-f="e" value="${esc(i.e || "")}"></td>
+      <td><input type="date" id="in-v-${k}" data-f="v" value="${esc(i.v || "")}"></td>
+      <td><input type="number" id="in-tem-${k}" data-f="tem" step="0.01" value="${i.tem ?? ""}"></td>
+      <td class="calc">${i.e && i.v && i.tem ? fmt(vfCalc(i),4) : "–"}</td>
+      <td><input type="number" id="in-vf-${k}" data-f="vf" step="0.0001" placeholder="opcional" value="${i.vf ?? ""}"></td>
+      <td><input type="number" id="in-pm-${k}" data-f="pm" step="0.001" placeholder="opcional" value="${i.pm ?? ""}"></td>
+      <td><button type="button" class="btn danger" data-del="${k}" aria-label="Quitar ${esc(i.t || "")}">Quitar</button></td></tr>`).join("") + "</tbody>";
+  $("tblInstr").innerHTML = h;
+}
+
+// ---------- Render: metodología ----------
+function pintarMetodo(){
+  const d = S.datos; if (!d) return;
+  const sel = $("mSel"), lista = d.filas.map(f => f.t);
+  if (sel.dataset.list !== lista.join()){ const prev = sel.value; sel.innerHTML = lista.map(t => `<option>${esc(t)}</option>`).join(""); sel.dataset.list = lista.join(); if (lista.includes(prev)) sel.value = prev; }
+  const f = d.filas.find(x => x.t === sel.value) || d.filas[0];
+  if (!f){ $("tblEj").innerHTML = `<tr><td class="l">Sin datos.</td></tr>`; return; }
+  const d360 = dias30360(f.e, f.v), conv = S.prefs.conv === "b30" ? "base 30 días" : "mensual de la TEA";
+  const filas = [
+    ["Emisión → vencimiento", `${fFecha(f.e)} → ${fFecha(f.v)}, 30/360 US`, `${d360} días (${fmt(d360/30,4)} meses)`],
+    ["Pago final", `100 × (1 + ${fmt(f.temE)}%)^${fmt(d360/30,4)}`, fmt(f.vf,4)],
+    ["Días al vencimiento", `${fFecha(d.liq)} → ${fFecha(f.v)}`, f.dias],
+    ["Directo", `${fmt(f.vf,4)} / ${fmt(f.p,3)} − 1`, fmt(f.dir,4) + "%"],
+    ["TNA", `${fmt(f.dir,4)}% × 365 / ${f.dias}`, fmt(f.tna) + "%"],
+    ["TEA", `(1 + directo)^(365/${f.dias}) − 1`, fmt(f.tea) + "%"],
+    [`TEM (${conv})`, "ver fórmula de TEM", fmt(f.tem,4) + "%"],
+    ["Dur. Mod.", `(${f.dias}/365) / (1 + TEA)`, fmt(f.dm,4)],
+  ];
+  $("tblEj").innerHTML = `<thead><tr><th class="l">Paso</th><th class="l">Cuenta</th><th>Resultado</th></tr></thead><tbody>` +
+    filas.map(r => `<tr><td class="l" style="font-family:var(--f-body)">${r[0]}</td><td class="l">${esc(r[1])}</td><td class="strong">${r[2]}</td></tr>`).join("") + "</tbody>";
+}
+
+// ---------- Render general ----------
+function render(){
+  const d = calcular(); S.datos = d;
+  pintarEstado(); pintarTape(d);
+  const tab = S.prefs.tab;
+  if (tab === "curva"){ pintarCurva(d); pintarTabla(d); }
+  else if (tab === "forwards") pintarForwards(d);
+  else if (tab === "calc") pintarCalc(false);
+  else if (tab === "metodo") pintarMetodo();
+}
+function mostrarTab(tab){
+  S.prefs.tab = tab; guardarPrefs();
+  document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === tab));
+  document.querySelectorAll("[data-panel]").forEach(p => p.hidden = p.dataset.panel !== tab);
+  if (tab === "instr") pintarInstr();
+  if (tab === "calc") { S.datos = calcular(); pintarCalc(true); }
+  render();
+}
+function pintarControles(){
+  document.querySelectorAll("#segLiq button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === S.prefs.modo));
+  $("ctlFecha").hidden = S.prefs.modo !== "Fecha";
+  $("inFecha").value = S.prefs.fecha || habil(hoyAR(), 1);
+  $("selFuente").value = S.prefs.fuente; $("selConv").value = S.prefs.conv;
+  $("chkVivo").checked = S.prefs.vivo; $("selCada").value = String(S.prefs.cada); $("selCada").disabled = !S.prefs.vivo;
+}
+
+// ---------- Eventos ----------
+$("segLiq").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.prefs.modo = b.dataset.v; if (b.dataset.v === "Fecha" && !S.prefs.fecha) S.prefs.fecha = habil(hoyAR(), 1); guardarPrefs(); pintarControles(); if (S.prefs.tab === "calc") { S.datos = calcular(); pintarCalc(true); } render(); });
+$("inFecha").addEventListener("change", e => { S.prefs.fecha = e.target.value || null; guardarPrefs(); render(); });
+$("selFuente").addEventListener("change", e => { S.prefs.fuente = e.target.value; S.prev = {}; guardarPrefs(); if (S.prefs.tab === "calc"){ S.datos = calcular(); pintarCalc(true); } render(); });
+$("selConv").addEventListener("change", e => { S.prefs.conv = e.target.value; guardarPrefs(); if (S.prefs.tab === "calc"){ S.datos = calcular(); pintarCalc(true); } render(); });
+$("chkVivo").addEventListener("change", e => { S.prefs.vivo = e.target.checked; guardarPrefs(); pintarControles(); programar(); });
+$("selCada").addEventListener("change", e => { S.prefs.cada = +e.target.value; guardarPrefs(); programar(); });
+$("btnAct").addEventListener("click", () => { $("btnAct").textContent = "Actualizando…"; refrescar().finally(() => $("btnAct").textContent = "Actualizar"); });
+$("tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) { mostrarTab(b.dataset.tab); try { history.replaceState(null, "", "#" + b.dataset.tab); } catch {} } });
+$("tbl").addEventListener("click", e => { const th = e.target.closest("th[data-k]"); if (!th) return; const k = th.dataset.k; S.sort = {k, dir: S.sort.k === k ? -S.sort.dir : (k === "t" || k === "tipo" ? 1 : -1)}; pintarTabla(S.datos); });
+$("cSel").addEventListener("change", e => { S.calc.sel = e.target.value; pintarCalc(true); });
+$("cModo").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.calc.modo = b.dataset.v; $("cModo").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b)); pintarCalc(true); });
+["cIn","cVf","cVto"].forEach(id => $(id).addEventListener("input", () => pintarCalc(false)));
+$("mSel").addEventListener("change", pintarMetodo);
+
+$("tblInstr").addEventListener("change", e => {
+  const inp = e.target.closest("input[data-f]"); if (!inp) return;
+  const k = +inp.closest("tr").dataset.k, f = inp.dataset.f;
+  let v = inp.value.trim();
+  if (f === "t") v = v.toUpperCase();
+  else if (["tem","vf","pm"].includes(f)) v = v === "" ? null : +v.replace(",", ".");
+  S.instr[k][f] = v; guardarInstr(); pintarInstr(); render();
+  $("instrMsg").textContent = "Guardado.";
+});
+$("tblInstr").addEventListener("click", e => {
+  const b = e.target.closest("[data-del]"); if (!b) return;
+  S.instr.splice(+b.dataset.del, 1); guardarInstr(); pintarInstr(); render(); $("instrMsg").textContent = "Instrumento quitado.";
+});
+$("btnAdd").addEventListener("click", () => { S.instr.push({t:"", e:"", v:"", tem:null}); guardarInstr(); pintarInstr(); const k = S.instr.length - 1; $("in-t-" + k)?.focus(); });
+let resetArmado = false;
+$("btnReset").addEventListener("click", () => {
+  if (!resetArmado){ resetArmado = true; $("btnReset").textContent = "Tocá de nuevo para confirmar"; setTimeout(() => { resetArmado = false; $("btnReset").textContent = "Restaurar originales"; }, 4000); return; }
+  resetArmado = false; $("btnReset").textContent = "Restaurar originales";
+  S.instr = INSTR_DEFAULT.map(x => ({...x})); guardarInstr(); pintarInstr(); render(); $("instrMsg").textContent = "Lista original restaurada.";
+});
+$("btnCopy").addEventListener("click", async () => {
+  const txt = "ticker,emision,vencimiento,tem,pago_final\n" + S.instr.map(i => [i.t, i.e, i.v, i.tem != null ? (i.tem/100).toFixed(4) : "", i.vf ?? ""].join(",")).join("\n");
+  try { await navigator.clipboard.writeText(txt); $("instrMsg").textContent = "Lista copiada en formato CSV."; }
+  catch { $("instrMsg").textContent = "No pude copiar automáticamente."; }
+});
+
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { if (S.prefs.tab === "curva" && S.datos) pintarCurva(S.datos); }, 120); });
+
+// ---------- Arranque ----------
+(async function init(){
+  const h = (location.hash || "").slice(1);
+  if (["curva","forwards","calc","instr","metodo"].includes(h)) S.prefs.tab = h;
+  pintarControles();
+  document.querySelectorAll("#cModo button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === S.calc.modo));
+  mostrarTab(S.prefs.tab);
+  await Promise.allSettled([cargarFeriados(), cargarPrecios()]);
+  pintarControles();
+  if (S.prefs.tab === "calc") { S.datos = calcular(); pintarCalc(true); }
+  render(); programar();
+  setInterval(pintarEstado, 30000);
+})();
+})();
+</script>
+</body>
+</html>
