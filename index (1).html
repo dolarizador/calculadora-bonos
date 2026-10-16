@@ -1,0 +1,800 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calculadora de Bonos</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 30 20%27%3E%3Crect width=%2730%27 height=%2720%27 fill=%27%2374ACDF%27/%3E%3Crect y=%276.67%27 width=%2730%27 height=%276.67%27 fill=%27%23fff%27/%3E%3Ccircle cx=%2715%27 cy=%2710%27 r=%272.1%27 fill=%27%23F6B40E%27/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: mesa de trading — franja de controles arriba, cinta de indicadores, curva grande y tabla densa */
+:root{
+  --bg:#f3f6fa; --surface:#ffffff; --surface-2:#eaf0f7; --ink:#0f1b2d; --muted:#5a6a80; --line:#d6dee8;
+  --accent:#1f5fbf; --accent-soft:rgba(31,95,191,.12); --boncap:#b8650f;
+  --pos:#0f7a45; --pos-bg:rgba(15,122,69,.11); --neg:#bf3426; --neg-bg:rgba(191,52,38,.11);
+  --flash:rgba(232,176,30,.55); --manual:#8a4fd0; --manual-bg:rgba(138,79,208,.10);
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0b121c; --surface:#111b28; --surface-2:#172435; --ink:#e4ecf5; --muted:#8798ae; --line:#22344a;
+  --accent:#6ea2ef; --accent-soft:rgba(110,162,239,.16); --boncap:#e7a24f;
+  --pos:#39c981; --pos-bg:rgba(57,201,129,.14); --neg:#ff6f5e; --neg-bg:rgba(255,111,94,.14);
+  --flash:rgba(240,190,60,.42); --manual:#c3a0f5; --manual-bg:rgba(195,160,245,.14); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b121c; --surface:#111b28; --surface-2:#172435; --ink:#e4ecf5; --muted:#8798ae; --line:#22344a;
+  --accent:#6ea2ef; --accent-soft:rgba(110,162,239,.16); --boncap:#e7a24f;
+  --pos:#39c981; --pos-bg:rgba(57,201,129,.14); --neg:#ff6f5e; --neg-bg:rgba(255,111,94,.14);
+  --flash:rgba(240,190,60,.42); --manual:#c3a0f5; --manual-bg:rgba(195,160,245,.14); color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:20px 48px}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+td,th,input{font-variant-numeric:tabular-nums}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Encabezado */
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px}
+.top h1{font-family:var(--f-display);font-weight:800;font-size:clamp(1.6rem,3.6vw,2.3rem);letter-spacing:-.025em;line-height:1.05;margin:0;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.flag{width:1.35em;height:.9em;flex:none;border-radius:3px;box-shadow:0 0 0 1px var(--line)}
+.status{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-family:var(--f-mono);font-size:.78rem}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--muted);white-space:nowrap}
+.chip b{color:var(--ink);font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.dot.on{background:var(--pos);animation:pulso 2s infinite}
+.dot.err{background:var(--neg)}
+@keyframes pulso{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--pos) 60%,transparent)}70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+
+/* Controles */
+.controls{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:flex-end;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.ctl{display:flex;flex-direction:column;gap:5px;min-width:0}
+.ctl>span{font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface-2)}
+.seg button{border:0;background:transparent;padding:6px 12px;cursor:pointer;font-weight:500;font-size:.88rem;color:var(--muted)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+select,input[type=date],input[type=number],input[type=text]{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:.88rem;min-width:0}
+.btn{border:1px solid var(--line);background:var(--surface-2);border-radius:6px;padding:7px 13px;cursor:pointer;font-weight:500;font-size:.88rem}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{color:var(--neg)}
+.btn.sm{padding:4px 10px;font-size:.8rem}
+.toggle{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:.88rem;padding-block:6px}
+.toggle input{appearance:none;width:34px;height:20px;border-radius:999px;background:var(--line);position:relative;cursor:pointer;margin:0;transition:background .2s}
+.toggle input::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--surface);transition:left .2s}
+.toggle input:checked{background:var(--pos)}
+.toggle input:checked::after{left:17px}
+.spacer{flex:1}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+/* Cinta de indicadores */
+.tape{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.tile{padding:12px 16px;min-width:0}
+.tile+.tile{border-left:1px solid var(--line)}
+.tile .lbl{font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.tile .val{font-family:var(--f-mono);font-weight:600;font-size:1.35rem;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .sub{font-family:var(--f-mono);font-size:.8rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.up{color:var(--pos)} .down{color:var(--neg)}
+
+/* Solapas */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
+.tabs button{border:0;background:none;padding:10px 16px;cursor:pointer;font-family:var(--f-display);font-weight:700;font-size:1.02rem;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.panel{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
+.card h2{font-family:var(--f-display);font-size:1.05rem;font-weight:700;margin:0 0 2px;letter-spacing:-.01em}
+.card .hint{margin:0 0 12px;color:var(--muted);font-size:.85rem}
+.cardhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:8px 16px}
+.note{color:var(--muted);font-size:.82rem;margin:0}
+.banner{padding:10px 14px;border-radius:8px;border:1px solid var(--neg);background:var(--neg-bg);font-size:.88rem}
+
+/* CER aplicable */
+.cerbox{display:flex;flex-wrap:wrap;gap:12px 28px;align-items:flex-end}
+.cerbox .big{font-family:var(--f-mono);font-size:1.5rem;font-weight:600;line-height:1.2}
+
+/* Gráfico */
+.chart{position:relative;width:100%}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart text{font-family:var(--f-mono);font-size:11px;fill:var(--muted)}
+.chart .lab{fill:var(--ink);font-weight:600;font-size:11px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.82rem;color:var(--muted);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.legend i.line{border-radius:0;height:0;border-top:2px dashed var(--muted);width:16px;vertical-align:3px}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);padding:8px 10px;border-radius:6px;font-family:var(--f-mono);font-size:.78rem;line-height:1.45;white-space:nowrap;transform:translate(-50%,calc(-100% - 12px));z-index:5}
+
+/* Tablas */
+.tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th{font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;text-align:right;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;user-select:none}
+th.l,td.l{text-align:left}
+th.sort{cursor:pointer}
+th.sort:hover{color:var(--ink)}
+th .arr{margin-left:3px}
+td{font-family:var(--f-mono);text-align:right;padding:6px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+tbody tr:hover td{background:var(--accent-soft)}
+td.tk{font-family:var(--f-display);font-weight:700;font-size:.95rem}
+td.strong{font-weight:600}
+td.dim{color:var(--muted)}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-weight:600}
+.pill.up{background:var(--pos-bg)} .pill.down{background:var(--neg-bg)} .pill.flat{color:var(--muted)}
+.tag{font-family:var(--f-body);font-size:.72rem;font-weight:600;letter-spacing:.06em;padding:2px 7px;border-radius:4px;border:1px solid currentColor}
+.tag.lecap{color:var(--accent)} .tag.boncap{color:var(--boncap)}
+
+/* Precio editable */
+td.pcell{padding:3px 6px}
+.pwrap{display:inline-flex;align-items:center;gap:4px}
+.pin{width:96px;text-align:right;font-family:var(--f-mono);font-weight:600;font-size:.9rem;padding:5px 8px;border:1px solid transparent;background:transparent;border-radius:5px}
+.pin:hover{border-color:var(--line)}
+.pin:focus{border-color:var(--accent);background:var(--surface)}
+.pin.man{color:var(--manual);background:var(--manual-bg);border-color:color-mix(in srgb,var(--manual) 40%,transparent)}
+.pin::placeholder{color:var(--muted);font-weight:400}
+.undo{border:0;background:none;cursor:pointer;color:var(--manual);font-size:.95rem;line-height:1;padding:2px 4px;border-radius:4px}
+.undo[hidden]{display:none}
+td.flash .pin{animation:flash 2.4s ease-out}
+@keyframes flash{0%,25%{background:var(--flash)}100%{background:transparent}}
+@media (prefers-reduced-motion:reduce){td.flash .pin{animation:none;background:var(--flash)}.dot.on{animation:none}}
+
+/* Editor de instrumentos */
+details.editor summary{cursor:pointer;font-weight:600;font-size:.9rem;color:var(--muted);list-style:none}
+details.editor summary::-webkit-details-marker{display:none}
+details.editor summary::before{content:"▸ ";}
+details.editor[open] summary::before{content:"▾ ";}
+details.editor[open] summary{margin-bottom:12px}
+.ed input{width:100%;min-width:96px}
+.ed td{padding:5px 6px}
+
+@media (max-width:860px){
+  .tape{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tile+.tile{border-left:0}
+  .tape .tile{border-top:1px solid var(--line)}
+  .tape .tile:nth-child(-n+2){border-top:0}
+  .tape .tile:nth-child(even){border-left:1px solid var(--line)}
+  .tape .tile:last-child:nth-child(odd){grid-column:span 2}
+}
+@media (max-width:520px){ .controls .spacer{display:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1>Calculadora de Bonos <svg class="flag" viewBox="0 0 30 20" role="img" aria-label="Bandera argentina"><rect width="30" height="20" fill="#74ACDF"/><rect y="6.67" width="30" height="6.67" fill="#fff"/><circle cx="15" cy="10" r="2.1" fill="#F6B40E" stroke="#85340A" stroke-width=".35"/></svg></h1>
+    <div class="status" aria-live="polite">
+      <span class="chip"><span class="dot" id="dotVivo"></span><span id="txtVivo">Conectando…</span></span>
+      <span class="chip" id="chipMercado">Mercado —</span>
+      <span class="chip">Mov. <b id="txtMov">—</b></span>
+    </div>
+  </header>
+
+  <section class="controls" aria-label="Controles">
+    <div class="ctl">
+      <span>Liquidación</span>
+      <div class="seg" id="segLiq">
+        <button type="button" data-v="CI">CI</button>
+        <button type="button" data-v="T+1">T+1</button>
+        <button type="button" data-v="Fecha">Fecha</button>
+      </div>
+    </div>
+    <div class="ctl" id="ctlFecha" hidden>
+      <span>Fecha</span>
+      <input type="date" id="inFecha">
+    </div>
+    <div class="ctl">
+      <span>Precio en vivo</span>
+      <select id="selFuente">
+        <option value="c">Último</option>
+        <option value="px_bid">Compra (bid)</option>
+        <option value="px_ask">Venta (ask)</option>
+      </select>
+    </div>
+    <div class="spacer"></div>
+    <div class="ctl">
+      <span>Actualización</span>
+      <div class="row">
+        <label class="toggle"><input type="checkbox" id="chkVivo" checked> En vivo</label>
+        <select id="selCada" aria-label="Cada cuánto consultar">
+          <option value="3">3 s</option><option value="5">5 s</option><option value="10">10 s</option>
+          <option value="30">30 s</option><option value="60">60 s</option>
+        </select>
+        <button type="button" class="btn" id="btnAct">Actualizar</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="banner" id="banner" role="alert" hidden></div>
+
+  <section class="tape" id="tape" aria-label="Indicadores"></section>
+
+  <nav class="tabs" role="tablist" id="tabs">
+    <button role="tab" data-tab="lecaps" aria-selected="true">Lecaps</button>
+    <button role="tab" data-tab="cer" aria-selected="false">CER</button>
+  </nav>
+
+  <!-- LECAPS -->
+  <section class="panel" data-panel="lecaps">
+    <div class="card">
+      <h2>Curva tasa fija</h2>
+      <p class="hint">TNA contra duration modificada, con ajuste logarítmico.</p>
+      <div class="chart" id="chartL"><svg id="svgL" role="img" aria-label="Curva de Lecaps"></svg><div class="tip" id="tipL" hidden></div></div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>LECAP</span><span><i style="background:var(--boncap)"></i>BONCAP</span><span><i class="line"></i>Curva ajustada</span></div>
+    </div>
+    <div class="card">
+      <div class="cardhead">
+        <div><h2>Lecaps &amp; Boncaps</h2>
+        <p class="hint">Escribí un precio en la columna Precio y las tasas se recalculan al instante. ↺ vuelve al precio en vivo.</p></div>
+        <button type="button" class="btn sm" data-clear="lecaps">Volver todo a precios en vivo</button>
+      </div>
+      <div class="tscroll"><table id="tblL"><thead></thead><tbody></tbody></table></div>
+      <p class="note" id="notaL" style="margin-top:10px"></p>
+    </div>
+    <div class="card">
+      <details class="editor" id="edL">
+        <summary>Editar instrumentos</summary>
+        <p class="hint">El pago final sale de la TEM de emisión (30/360 US). Si cargás un pago final a mano, pisa al cálculo. Se guarda en este navegador.</p>
+        <div class="tscroll"><table class="ed" id="tblEdL"></table></div>
+        <div class="row" style="margin-top:12px">
+          <button type="button" class="btn primary" data-add="lecaps">Agregar</button>
+          <button type="button" class="btn danger" data-reset="lecaps">Restaurar originales</button>
+          <span class="note" id="msgL"></span>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- CER -->
+  <section class="panel" data-panel="cer" hidden>
+    <div class="card">
+      <h2>CER aplicable</h2>
+      <p class="hint">El CER de 10 días hábiles antes de la liquidación. Viene del BCRA; si no carga, escribilo a mano.</p>
+      <div class="cerbox">
+        <div class="ctl"><span>Fecha CER</span><div class="big" id="cerFecha">—</div></div>
+        <div class="ctl"><span>Valor BCRA</span><div class="big" id="cerValor">—</div></div>
+        <label class="ctl"><span>CER manual (opcional)</span><input type="text" inputmode="decimal" id="cerManual" placeholder="pisa al BCRA" style="width:150px"></label>
+        <span class="note" id="cerEstado"></span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Curva CER</h2>
+      <p class="hint">TIR real contra duration modificada, con ajuste logarítmico.</p>
+      <div class="chart" id="chartC"><svg id="svgC" role="img" aria-label="Curva CER"></svg><div class="tip" id="tipC" hidden></div></div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>Bonos CER</span><span><i class="line"></i>Curva ajustada</span></div>
+    </div>
+    <div class="card">
+      <div class="cardhead">
+        <div><h2>Bonos CER</h2>
+        <p class="hint">Escribí un precio en la columna Precio y las tasas se recalculan al instante. ↺ vuelve al precio en vivo.</p></div>
+        <button type="button" class="btn sm" data-clear="cer">Volver todo a precios en vivo</button>
+      </div>
+      <div class="tscroll"><table id="tblC"><thead></thead><tbody></tbody></table></div>
+      <p class="note" id="notaC" style="margin-top:10px"></p>
+    </div>
+    <div class="card">
+      <details class="editor" id="edC">
+        <summary>Editar instrumentos</summary>
+        <p class="hint">El CER base es el de 10 días hábiles antes de la emisión y se busca solo en la serie del BCRA. Si cargás uno a mano, pisa al automático. Se guarda en este navegador.</p>
+        <div class="tscroll"><table class="ed" id="tblEdC"></table></div>
+        <div class="row" style="margin-top:12px">
+          <button type="button" class="btn primary" data-add="cer">Agregar</button>
+          <button type="button" class="btn danger" data-reset="cer">Restaurar originales</button>
+          <span class="note" id="msgC"></span>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <p class="note">Precios: data912 · CER: BCRA · Feriados: ArgentinaDatos · Tasas en base actual/365 · Horario Argentina. Herramienta de cálculo; no es recomendación de inversión.</p>
+</div>
+
+<script>
+(() => {
+"use strict";
+const TZ = "America/Argentina/Buenos_Aires";
+const URLS_PRECIOS = ["https://data912.com/live/arg_notes", "https://data912.com/live/arg_bonds"];
+const URL_FERIADOS = y => `https://api.argentinadatos.com/v1/feriados/${y}`;
+const URL_CER = (desde, hasta, off) => `https://api.bcra.gob.ar/estadisticas/v4.0/monetarias/30?desde=${desde}&hasta=${hasta}&offset=${off}`;
+
+const LECAP_DEFAULT = [
+  {t:"S30O6", e:"2025-10-31", v:"2026-10-30", tem:2.55},
+  {t:"S13N6", e:"2026-06-30", v:"2026-11-13", tem:2.10},
+  {t:"S30N6", e:"2025-12-15", v:"2026-11-30", tem:2.30},
+  {t:"T15E7", e:"2025-01-31", v:"2027-01-15", tem:2.05},
+  {t:"S29E7", e:"2026-08-31", v:"2027-01-29", tem:2.25},
+  {t:"T30A7", e:"2025-10-31", v:"2027-04-30", tem:2.55},
+  {t:"T31Y7", e:"2025-12-15", v:"2027-05-31", tem:2.40},
+  {t:"T30J7", e:"2026-01-16", v:"2027-06-30", tem:2.58},
+];
+const CER_DEFAULT = [
+  {t:"TZXO6", e:"2024-10-31", v:"2026-10-30"},
+  {t:"X30N6", e:"2025-12-15", v:"2026-11-30"},
+];
+const FERIADOS_RESPALDO = ["2026-01-01","2026-02-16","2026-02-17","2026-03-23","2026-03-24","2026-04-02","2026-04-03",
+  "2026-05-01","2026-05-25","2026-06-15","2026-06-20","2026-07-09","2026-07-10","2026-08-17","2026-10-12",
+  "2026-11-09","2026-11-23","2026-12-07","2026-12-08","2026-12-25"];
+
+const store = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+
+const S = {
+  lecaps: store.get("cb-lecaps", null) || LECAP_DEFAULT.map(x => ({...x})),
+  cer: store.get("cb-cer", null) || CER_DEFAULT.map(x => ({...x})),
+  prefs: Object.assign({modo:"T+1", fecha:null, fuente:"c", vivo:true, cada:5, tab:"lecaps"}, store.get("cb-prefs", {})),
+  manual: {},            // precios escritos a mano: {ticker: precio}
+  precios: {}, prev: {}, movidos: new Set(), ultMov: null,
+  feriados: new Set(FERIADOS_RESPALDO),
+  cerSerie: new Map(), cerOk: null, cerManual: null,
+  estado: "cargando", hora: null,
+  sort: {lecaps:{k:"dias", dir:1}, cer:{k:"dias", dir:1}},
+  timer: null, datos: {},
+};
+const guardar = () => { store.set("cb-prefs", S.prefs); store.set("cb-lecaps", S.lecaps); store.set("cb-cer", S.cer); };
+
+// ---------- Fechas ----------
+const hoyAR = () => new Date().toLocaleDateString("en-CA", {timeZone: TZ});
+const horaAR = () => new Date().toLocaleTimeString("es-AR", {timeZone: TZ, hour12: false});
+const dn = s => { const [y,m,d] = s.split("-").map(Number); return Date.UTC(y, m-1, d) / 864e5; };
+const iso = n => new Date(n * 864e5).toISOString().slice(0, 10);
+const fFecha = s => s ? s.split("-").reverse().join("/") : "—";
+const esHabil = n => { const w = new Date(n * 864e5).getUTCDay(); return w !== 0 && w !== 6 && !S.feriados.has(iso(n)); };
+function habil(s, n = 0){ let d = dn(s); while (!esHabil(d)) d++; let k = n; while (k > 0){ d++; if (esHabil(d)) k--; } return iso(d); }
+function habilAtras(s, n){ let d = dn(s), k = n; while (k > 0){ d--; if (esHabil(d)) k--; } return iso(d); }
+function dias30360(e, v){
+  const [y1,m1,d1r] = e.split("-").map(Number), [y2,m2,d2r] = v.split("-").map(Number);
+  const d1 = Math.min(d1r, 30), d2 = (d2r === 31 && d1 >= 30) ? 30 : d2r;
+  return 360*(y2-y1) + 30*(m2-m1) + (d2-d1);
+}
+
+// ---------- Formato ----------
+const nf = {};
+function fmt(x, dec = 2){
+  if (x == null || !isFinite(x)) return "–";
+  nf[dec] ??= new Intl.NumberFormat("es-AR", {minimumFractionDigits: dec, maximumFractionDigits: dec});
+  return nf[dec].format(x);
+}
+const fPb = x => (x == null || !isFinite(x)) ? "–" : (x > 0 ? "+" : "") + fmt(x, 0);
+const signo = x => x > 0 ? "up" : x < 0 ? "down" : "flat";
+const flecha = x => x > 0 ? "▲" : x < 0 ? "▼" : "■";
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const aInput = x => x == null || !isFinite(x) ? "" : (+x).toFixed(3).replace(".", ",");
+function parseNum(s){
+  s = String(s ?? "").trim(); if (!s) return null;
+  s = s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s;
+  const v = parseFloat(s); return isFinite(v) ? v : null;
+}
+
+// ---------- Cálculo (todo actual/365) ----------
+function tasas(factor, dias){                // factor = flujo final / precio
+  const dir = factor - 1, tna = dir * 365 / dias;
+  const tea = Math.pow(factor, 365 / dias) - 1, tem = Math.pow(1 + tea, 1/12) - 1;
+  return {dir, tna, tea, tem, dm: (dias / 365) / (1 + tea)};
+}
+function ajusteLog(xs, ys){
+  if (xs.length < 3) return null;
+  const lx = xs.map(Math.log), n = xs.length;
+  const mx = lx.reduce((a,b)=>a+b,0)/n, my = ys.reduce((a,b)=>a+b,0)/n;
+  let sxy = 0, sxx = 0;
+  for (let i = 0; i < n; i++){ sxy += (lx[i]-mx)*(ys[i]-my); sxx += (lx[i]-mx)**2; }
+  if (!sxx) return null; const b = sxy / sxx; return {a: my - b*mx, b};
+}
+function liquidacion(){
+  const hoy = hoyAR(), m = S.prefs.modo;
+  if (m === "CI") return habil(hoy, 0);
+  if (m === "Fecha" && S.prefs.fecha) return habil(S.prefs.fecha, 0);
+  return habil(hoy, 1);
+}
+function precioDe(t){
+  if (S.manual[t] > 0) return {p: S.manual[t], manual: true};
+  const q = S.precios[t], p = q ? +q[S.prefs.fuente] : NaN;
+  return {p: p > 0 ? p : null, manual: false};
+}
+const vivoDe = t => { const q = S.precios[t], p = q ? +q[S.prefs.fuente] : NaN; return p > 0 ? p : null; };
+const vfCalc = i => 100 * Math.pow(1 + i.tem/100, dias30360(i.e, i.v) / 30);
+const tipoDe = t => t.startsWith("T") ? "BONCAP" : "LECAP";
+
+function cerEn(fecha){                        // valor en la fecha o el último anterior
+  if (!S.cerSerie.size) return null;
+  let d = dn(fecha);
+  for (let k = 0; k < 10; k++, d--){ const v = S.cerSerie.get(iso(d)); if (v != null) return {fecha: iso(d), v}; }
+  return null;
+}
+function ponerVsCurva(filas, key){
+  const conP = filas.filter(f => f[key] != null);
+  const fit = ajusteLog(conP.map(f=>f.dm), conP.map(f=>f[key]));
+  if (fit) conP.forEach(f => f.vsc = (f[key] - (fit.a + fit.b*Math.log(f.dm))) * 100);
+  return fit;
+}
+function calcLecaps(liq){
+  const filas = [];
+  for (const i of S.lecaps){
+    if (!i.t || !i.v || !i.e) continue;
+    const dias = dn(i.v) - dn(liq); if (dias <= 0) continue;
+    const vf = i.vf > 0 ? +i.vf : (i.tem ? vfCalc(i) : null);
+    const {p, manual} = precioDe(i.t), q = S.precios[i.t];
+    const f = {t:i.t, tipo:tipoDe(i.t), p, manual, vivo: vivoDe(i.t), var: q ? q.pct_change : null, dias, vf, v:i.v};
+    if (p && vf){ const m = tasas(vf / p, dias); Object.assign(f, {tna:m.tna*100, tem:m.tem*100, tea:m.tea*100, dm:m.dm}); }
+    filas.push(f);
+  }
+  filas.sort((a,b) => a.dias - b.dias);
+  return {filas, fit: ponerVsCurva(filas, "tna")};
+}
+function calcCer(liq){
+  const fechaAplic = habilAtras(liq, 10);
+  const auto = cerEn(fechaAplic);
+  const cerHoy = S.cerManual > 0 ? S.cerManual : auto ? auto.v : null;
+  const filas = [];
+  for (const i of S.cer){
+    if (!i.t || !i.v || !i.e) continue;
+    const dias = dn(i.v) - dn(liq); if (dias <= 0) continue;
+    const baseAuto = cerEn(habilAtras(i.e, 10));
+    const base = i.cb > 0 ? +i.cb : baseAuto ? baseAuto.v : null;
+    const {p, manual} = precioDe(i.t), q = S.precios[i.t];
+    const f = {t:i.t, p, manual, vivo: vivoDe(i.t), var: q ? q.pct_change : null, dias, v:i.v, base};
+    if (cerHoy && base){ f.coef = cerHoy / base; f.vt = 100 * f.coef; }
+    if (p && f.coef){
+      const m = tasas(100 / (p / f.coef), dias);
+      Object.assign(f, {tir:m.tea*100, tna:m.tna*100, tem:m.tem*100, dm:m.dm, par: p / f.vt * 100});
+    }
+    filas.push(f);
+  }
+  filas.sort((a,b) => a.dias - b.dias);
+  return {filas, fit: ponerVsCurva(filas, "tir"), fechaAplic, auto, cerHoy};
+}
+
+// ---------- Datos remotos ----------
+async function getJSON(url, ms = 9000){
+  const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), ms);
+  try { const r = await fetch(url, {signal: ctl.signal, cache: "no-store"}); if (!r.ok) throw new Error(r.status); return await r.json(); }
+  finally { clearTimeout(to); }
+}
+async function cargarFeriados(){
+  const y0 = Math.min(+hoyAR().slice(0,4), ...S.cer.filter(i => i.e).map(i => +i.e.slice(0,4)));
+  const ys = []; for (let y = y0; y <= +hoyAR().slice(0,4) + 1; y++) ys.push(y);
+  const res = await Promise.allSettled(ys.map(y => getJSON(URL_FERIADOS(y))));
+  res.forEach(r => { if (r.status === "fulfilled" && Array.isArray(r.value)) r.value.forEach(f => f.fecha && S.feriados.add(f.fecha)); });
+}
+async function cargarCer(){
+  const fechas = S.cer.filter(i => i.e).map(i => i.e);
+  const desde = iso(Math.min(dn(hoyAR()) - 40, ...fechas.map(dn)) - 25);
+  const hasta = iso(dn(hoyAR()) + 10);
+  try {
+    let off = 0, total = Infinity; const serie = new Map();
+    while (off < total && off < 6000){
+      const j = await getJSON(URL_CER(desde, hasta, off), 12000);
+      const det = j?.results?.[0]?.detalle || [];
+      total = j?.metadata?.resultset?.count ?? det.length;
+      det.forEach(x => serie.set(x.fecha, +x.valor));
+      if (!det.length) break; off += det.length;
+    }
+    if (!serie.size) throw new Error("vacía");
+    S.cerSerie = serie; S.cerOk = true;
+  } catch { S.cerOk = false; }
+}
+async function cargarPrecios(){
+  const res = await Promise.allSettled(URLS_PRECIOS.map(u => getJSON(u)));
+  const ok = res.filter(r => r.status === "fulfilled" && Array.isArray(r.value));
+  S.hora = horaAR();
+  if (!ok.length){ S.estado = "error"; return; }
+  const nuevos = {};
+  ok.forEach(r => r.value.forEach(q => { if (q && q.symbol) nuevos[q.symbol] = q; }));
+  const f = S.prefs.fuente, todos = [...S.lecaps, ...S.cer]; S.movidos = new Set();
+  for (const i of todos){
+    const a = S.prev[i.t], b = nuevos[i.t] ? nuevos[i.t][f] : undefined;
+    if (a != null && b != null && a !== b) S.movidos.add(i.t);
+  }
+  if (S.movidos.size) S.ultMov = {hora: S.hora, t: [...S.movidos]};
+  S.prev = Object.fromEntries(todos.map(i => [i.t, nuevos[i.t] ? nuevos[i.t][f] : undefined]));
+  S.precios = nuevos; S.estado = "ok";
+}
+async function refrescar(){ await cargarPrecios(); render(); }
+function programar(){
+  clearInterval(S.timer);
+  if (S.prefs.vivo) S.timer = setInterval(refrescar, S.prefs.cada * 1000);
+  pintarEstado();
+}
+
+// ---------- Render: estado ----------
+const $ = id => document.getElementById(id);
+function mercadoAbierto(){
+  if (!esHabil(dn(hoyAR()))) return false;
+  const [h, m] = horaAR().split(":").map(Number), t = h*60 + m;
+  return t >= 11*60 && t < 17*60;
+}
+function pintarEstado(){
+  $("dotVivo").className = "dot" + (S.estado === "error" ? " err" : S.prefs.vivo && S.estado === "ok" ? " on" : "");
+  $("txtVivo").textContent = S.estado === "cargando" ? "Conectando…" :
+    S.estado === "error" ? `Sin precios en vivo · ${S.hora || ""}` :
+    `${S.prefs.vivo ? "En vivo · " + S.prefs.cada + " s" : "En pausa"} · ${S.hora}`;
+  const ab = mercadoAbierto();
+  $("chipMercado").innerHTML = `Mercado <b class="${ab ? "up" : ""}">${ab ? "abierto" : "cerrado"}</b>`;
+  $("txtMov").textContent = S.ultMov ? `${S.ultMov.hora} ${S.ultMov.t.join(", ")}` : "—";
+  const b = $("banner");
+  b.hidden = S.estado !== "error";
+  b.textContent = "No pude leer los precios de data912 desde este navegador. Podés escribir los precios a mano en la columna Precio.";
+}
+
+// ---------- Render: indicadores ----------
+function tiles(arr){
+  $("tape").innerHTML = arr.map(([l, v, s]) => `<div class="tile"><div class="lbl">${l}</div><div class="val">${v}</div><div class="sub">${s || "&nbsp;"}</div></div>`).join("");
+}
+function mejoresPeores(fs){
+  const cv = fs.filter(f => f.var != null && isFinite(f.var));
+  if (!cv.length) return [["Mejor del día","—","sin variación"],["Peor del día","—","sin variación"]];
+  const up = cv.reduce((a,f) => f.var > a.var ? f : a), dw = cv.reduce((a,f) => f.var < a.var ? f : a);
+  const s = f => `<span class="${signo(f.var)}">${flecha(f.var)} ${fmt(Math.abs(f.var))}%</span>`;
+  return [["Mejor del día", up.t, s(up)], ["Peor del día", dw.t, s(dw)]];
+}
+function pintarTape(liq){
+  const modo = S.prefs.modo === "Fecha" ? "fecha elegida" : S.prefs.modo;
+  if (S.prefs.tab === "lecaps"){
+    const fs = S.datos.lecaps.filas.filter(f => f.tem != null);
+    const prom = fs.length ? fs.reduce((a,f)=>a+f.tem,0)/fs.length : null;
+    const top = fs.length ? fs.reduce((a,f) => f.tem > a.tem ? f : a) : null;
+    tiles([["Liquidación", fFecha(liq), modo], ["TEM promedio", prom != null ? fmt(prom)+"%" : "—", `${fs.length} con precio`],
+      ["Mayor TEM", top ? fmt(top.tem)+"%" : "—", top ? top.t : ""], ...mejoresPeores(fs)]);
+  } else {
+    const d = S.datos.cer, fs = d.filas.filter(f => f.tir != null);
+    const prom = fs.length ? fs.reduce((a,f)=>a+f.tir,0)/fs.length : null;
+    tiles([["Liquidación", fFecha(liq), modo], ["CER aplicable", d.cerHoy ? fmt(d.cerHoy,4) : "—", S.cerManual > 0 ? "manual" : d.auto ? fFecha(d.auto.fecha) : "sin dato"],
+      ["TIR real promedio", prom != null ? fmt(prom)+"%" : "—", `${fs.length} con precio`], ...mejoresPeores(fs)]);
+  }
+}
+
+// ---------- Render: gráfico ----------
+function ticks(min, max, n = 5){
+  const span = max - min || 1, raw = span / n, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1,2,2.5,5,10].map(s => s*mag).find(s => span/s <= n) || mag*10;
+  const out = []; for (let v = Math.ceil(min/step)*step; v <= max + 1e-9; v += step) out.push(+v.toFixed(10));
+  out.dec = step >= 1 ? 0 : (String(+step.toFixed(10)).split(".")[1] || "").length;
+  return out;
+}
+function pintarCurva(ids, filas, yk, fit, ylab, colorDe, tipHtml){
+  const svg = $(ids.svg), W = Math.max(320, $(ids.chart).clientWidth), H = W < 560 ? 300 : 360;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const fs = filas.filter(f => f[yk] != null && f.dm > 0);
+  if (!fs.length){ svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle">Sin precios para graficar</text>`; return; }
+  const P = {l: 52, r: 18, t: 22, b: 40};
+  const xMax = Math.max(...fs.map(f=>f.dm)) * 1.08;
+  let yMin = Math.min(...fs.map(f=>f[yk])), yMax = Math.max(...fs.map(f=>f[yk]));
+  const pad = Math.max(0.5, (yMax - yMin) * 0.18); yMin -= pad; yMax += pad;
+  const X = v => P.l + v / xMax * (W - P.l - P.r), Y = v => H - P.b - (v - yMin) / (yMax - yMin) * (H - P.t - P.b);
+  let g = "";
+  const ty = ticks(yMin, yMax), tx = ticks(0, xMax);
+  ty.forEach(v => { if (v < yMin || v > yMax) return; g += `<line x1="${P.l}" x2="${W-P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${P.l-8}" y="${Y(v)+4}" text-anchor="end">${fmt(v, ty.dec)}%</text>`; });
+  tx.forEach(v => { if (v > xMax) return; g += `<line x1="${X(v)}" x2="${X(v)}" y1="${P.t}" y2="${H-P.b}" stroke="var(--line)" stroke-dasharray="2 4"/><text x="${X(v)}" y="${H-P.b+18}" text-anchor="middle">${fmt(v, tx.dec)}</text>`; });
+  g += `<text x="${(P.l + W - P.r)/2}" y="${H-4}" text-anchor="middle">Duration modificada (años)</text><text x="${P.l}" y="${P.t-8}" text-anchor="start">${ylab}</text>`;
+  if (fit){
+    const x0 = Math.min(...fs.map(f=>f.dm)), x1 = Math.max(...fs.map(f=>f.dm)); let path = "";
+    for (let k = 0; k <= 60; k++){ const x = x0 + (x1-x0)*k/60; path += (k ? "L" : "M") + X(x).toFixed(1) + " " + Y(fit.a + fit.b*Math.log(x)).toFixed(1); }
+    g += `<path d="${path}" fill="none" stroke="var(--muted)" stroke-width="1.6" stroke-dasharray="5 5"/>`;
+  }
+  fs.forEach((f, i) => {
+    const above = i % 2 === 0, ring = f.manual ? `stroke="var(--manual)" stroke-width="2.5"` : `stroke="var(--surface)" stroke-width="1.5"`;
+    g += `<g class="pt" data-i="${i}" style="cursor:pointer"><circle cx="${X(f.dm)}" cy="${Y(f[yk])}" r="11" fill="transparent"/><circle cx="${X(f.dm)}" cy="${Y(f[yk])}" r="5.5" fill="${colorDe(f)}" ${ring}/>`
+       + `<text class="lab" x="${X(f.dm)}" y="${Y(f[yk]) + (above ? -11 : 19)}" text-anchor="middle">${esc(f.t)}</text></g>`;
+  });
+  svg.innerHTML = g;
+  const tip = $(ids.tip);
+  svg.querySelectorAll(".pt").forEach(el => {
+    const f = fs[+el.dataset.i];
+    const show = () => {
+      tip.innerHTML = tipHtml(f);
+      const r = svg.getBoundingClientRect(), k = r.width / W;
+      tip.style.left = Math.min(Math.max(X(f.dm)*k, 100), r.width - 100) + "px"; tip.style.top = Y(f[yk])*k + "px"; tip.hidden = false;
+    };
+    el.addEventListener("pointerenter", show); el.addEventListener("click", show);
+    el.addEventListener("pointerleave", () => tip.hidden = true);
+  });
+}
+
+// ---------- Render: tablas ----------
+const COLS = {
+  lecaps: [
+    {k:"t", h:"Ticker", l:true}, {k:"p", h:"Precio"}, {k:"var", h:"Var %"}, {k:"tna", h:"TNA %"}, {k:"tem", h:"TEM %", strong:true},
+    {k:"tea", h:"TEA %"}, {k:"dm", h:"Dur. Mod.", d:3}, {k:"vsc", h:"vs Curva (pb)"}, {k:"dias", h:"Días", d:0}, {k:"vf", h:"Pago final", d:4},
+    {k:"v", h:"Vencimiento"}, {k:"tipo", h:"Tipo", l:true},
+  ],
+  cer: [
+    {k:"t", h:"Ticker", l:true}, {k:"p", h:"Precio"}, {k:"var", h:"Var %"}, {k:"tir", h:"TIR real %", strong:true}, {k:"tna", h:"TNA real %"},
+    {k:"tem", h:"TEM real %"}, {k:"dm", h:"Dur. Mod.", d:3}, {k:"vsc", h:"vs Curva (pb)"}, {k:"dias", h:"Días", d:0},
+    {k:"coef", h:"Coef. CER", d:4}, {k:"vt", h:"Valor técnico", d:3}, {k:"par", h:"Paridad %"}, {k:"v", h:"Vencimiento"},
+  ],
+};
+function celdaInner(c, f){
+  const x = f[c.k];
+  switch (c.k){
+    case "t": return esc(f.t);
+    case "var": return x == null ? "–" : `<span class="pill ${signo(x)}">${flecha(x)} ${fmt(Math.abs(x))}</span>`;
+    case "vsc": return x == null ? "–" : `<span class="pill ${Math.abs(x) < 5 ? "flat" : signo(x)}">${fPb(x)}</span>`;
+    case "v": return fFecha(x);
+    case "tipo": return `<span class="tag ${x.toLowerCase()}">${x}</span>`;
+    case "dias": return String(x);
+    default: return fmt(x, c.d ?? 2);
+  }
+}
+function celdaPrecio(f, flash){
+  return `<td class="pcell${flash ? " flash" : ""}" data-k="p"><span class="pwrap">`
+    + `<input class="pin${f.manual ? " man" : ""}" type="text" inputmode="decimal" id="p-${esc(f.t)}" data-t="${esc(f.t)}" value="${aInput(f.p)}" placeholder="precio" aria-label="Precio ${esc(f.t)}" autocomplete="off">`
+    + `<button type="button" class="undo" data-undo="${esc(f.t)}" title="Volver al precio en vivo${f.vivo ? " (" + fmt(f.vivo,3) + ")" : ""}" aria-label="Volver al precio en vivo" ${f.manual ? "" : "hidden"}>↺</button></span></td>`;
+}
+function pintarTabla(tab, filas){
+  const tbl = $(tab === "lecaps" ? "tblL" : "tblC"), cols = COLS[tab], {k, dir} = S.sort[tab];
+  const foco = tbl.contains(document.activeElement) && document.activeElement.classList.contains("pin");
+  if (foco){                                  // mientras escribís, solo actualizo números
+    for (const f of filas){
+      const tr = tbl.querySelector(`tr[data-t="${CSS.escape(f.t)}"]`); if (!tr) continue;
+      cols.forEach(c => { if (c.k === "p") return; const td = tr.querySelector(`td[data-k="${c.k}"]`); if (td) td.innerHTML = celdaInner(c, f); });
+      const inp = tr.querySelector(".pin"), und = tr.querySelector(".undo");
+      if (inp !== document.activeElement){ inp.value = aInput(f.p); inp.classList.toggle("man", f.manual); und.hidden = !f.manual; }
+    }
+    return;
+  }
+  const fs = [...filas].sort((a,b) => { const x = a[k], y = b[k]; if (x == null) return 1; if (y == null) return -1; return (x > y ? 1 : x < y ? -1 : 0) * dir; });
+  tbl.tHead.innerHTML = "<tr>" + cols.map(c => `<th class="sort${c.l ? " l" : ""}" data-k="${c.k}">${c.h}${c.k === k ? `<span class="arr">${dir > 0 ? "↑" : "↓"}</span>` : ""}</th>`).join("") + "</tr>";
+  tbl.tBodies[0].innerHTML = fs.length ? fs.map(f => `<tr data-t="${esc(f.t)}">` + cols.map(c => c.k === "p" ? celdaPrecio(f, S.movidos.has(f.t) && !f.manual)
+      : `<td data-k="${c.k}" class="${c.l ? "l " : ""}${c.k === "t" ? "tk" : c.strong ? "strong" : ""}">${celdaInner(c, f)}</td>`).join("") + "</tr>").join("")
+    : `<tr><td class="l" colspan="${cols.length}">No hay instrumentos vigentes. Agregalos en «Editar instrumentos».</td></tr>`;
+}
+function notaTabla(tab, filas){
+  const fu = {c:"último", px_bid:"compra (bid)", px_ask:"venta (ask)"}[S.prefs.fuente];
+  const sin = filas.filter(f => f.p == null).map(f => f.t), man = filas.filter(f => f.manual).length;
+  let t = `Precio en vivo: ${fu}. Tasas actual/365.`;
+  if (man) t += ` ${man} con precio manual (en violeta).`;
+  if (sin.length) t += ` Sin precio: ${sin.join(", ")}.`;
+  if (tab === "cer") t += " TIR real = (100 / (Precio / Coef. CER))^(365/días) − 1.";
+  $(tab === "lecaps" ? "notaL" : "notaC").textContent = t;
+}
+
+// ---------- Render: CER aplicable ----------
+function pintarCerBox(d){
+  $("cerFecha").textContent = fFecha(d.fechaAplic);
+  $("cerValor").textContent = d.auto ? fmt(d.auto.v, 4) : "—";
+  $("cerEstado").textContent = S.cerOk === null ? "Cargando serie del BCRA…" :
+    S.cerOk ? (d.auto && d.auto.fecha !== d.fechaAplic ? `Último dato disponible: ${fFecha(d.auto.fecha)}.` : "Serie del BCRA cargada.") :
+    "No pude leer la serie del BCRA desde este navegador. Cargá el CER aplicable a mano y el CER base de cada bono en «Editar instrumentos».";
+}
+
+// ---------- Render: editores ----------
+function pintarEditor(tab){
+  const lista = S[tab], cer = tab === "cer";
+  const cab = cer ? `<th class="l">Ticker</th><th class="l">Emisión</th><th class="l">Vencimiento</th><th>CER base auto</th><th>CER base manual</th><th></th>`
+                  : `<th class="l">Ticker</th><th class="l">Emisión</th><th class="l">Vencimiento</th><th>TEM emisión %</th><th>Pago final calc.</th><th>Pago final manual</th><th></th>`;
+  const filas = lista.map((i, k) => {
+    const base = `<td><input type="text" id="ed-${tab}-t-${k}" data-f="t" value="${esc(i.t || "")}" style="min-width:80px;text-transform:uppercase"></td>
+      <td><input type="date" id="ed-${tab}-e-${k}" data-f="e" value="${esc(i.e || "")}"></td>
+      <td><input type="date" id="ed-${tab}-v-${k}" data-f="v" value="${esc(i.v || "")}"></td>`;
+    const resto = cer
+      ? `<td class="dim">${i.e && S.cerSerie.size ? fmt(cerEn(habilAtras(i.e, 10))?.v, 4) : "–"}</td>
+         <td><input type="text" inputmode="decimal" id="ed-${tab}-cb-${k}" data-f="cb" placeholder="opcional" value="${i.cb ?? ""}"></td>`
+      : `<td><input type="text" inputmode="decimal" id="ed-${tab}-tem-${k}" data-f="tem" value="${i.tem ?? ""}"></td>
+         <td class="dim">${i.e && i.v && i.tem ? fmt(vfCalc(i),4) : "–"}</td>
+         <td><input type="text" inputmode="decimal" id="ed-${tab}-vf-${k}" data-f="vf" placeholder="opcional" value="${i.vf ?? ""}"></td>`;
+    return `<tr data-k="${k}">${base}${resto}<td><button type="button" class="btn danger sm" data-del="${k}">Quitar</button></td></tr>`;
+  }).join("");
+  $(cer ? "tblEdC" : "tblEdL").innerHTML = `<thead><tr>${cab}</tr></thead><tbody>${filas}</tbody>`;
+}
+
+// ---------- Render general ----------
+function render(){
+  const liq = liquidacion();
+  S.datos.lecaps = calcLecaps(liq);
+  S.datos.cer = calcCer(liq);
+  pintarEstado(); pintarTape(liq);
+  if (S.prefs.tab === "lecaps"){
+    const d = S.datos.lecaps;
+    pintarCurva({svg:"svgL", chart:"chartL", tip:"tipL"}, d.filas, "tna", d.fit, "TNA",
+      f => f.tipo === "BONCAP" ? "var(--boncap)" : "var(--accent)",
+      f => `<b>${esc(f.t)}</b> · ${f.tipo}${f.manual ? " · manual" : ""}<br>TNA ${fmt(f.tna)}% · TEM ${fmt(f.tem)}%<br>Precio ${fmt(f.p,3)} · ${f.dias} días${f.vsc != null ? `<br>vs curva ${fPb(f.vsc)} pb` : ""}`);
+    pintarTabla("lecaps", d.filas); notaTabla("lecaps", d.filas);
+  } else {
+    const d = S.datos.cer;
+    pintarCerBox(d);
+    pintarCurva({svg:"svgC", chart:"chartC", tip:"tipC"}, d.filas, "tir", d.fit, "TIR real",
+      () => "var(--accent)",
+      f => `<b>${esc(f.t)}</b>${f.manual ? " · manual" : ""}<br>TIR real ${fmt(f.tir)}% · TEM real ${fmt(f.tem)}%<br>Precio ${fmt(f.p,3)} · paridad ${fmt(f.par)}%<br>${f.dias} días${f.vsc != null ? ` · vs curva ${fPb(f.vsc)} pb` : ""}`);
+    pintarTabla("cer", d.filas); notaTabla("cer", d.filas);
+  }
+}
+function mostrarTab(tab){
+  S.prefs.tab = tab; guardar();
+  document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === tab));
+  document.querySelectorAll("[data-panel]").forEach(p => p.hidden = p.dataset.panel !== tab);
+  pintarEditor(tab); render();
+}
+function pintarControles(){
+  document.querySelectorAll("#segLiq button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === S.prefs.modo));
+  $("ctlFecha").hidden = S.prefs.modo !== "Fecha";
+  $("inFecha").value = S.prefs.fecha || habil(hoyAR(), 1);
+  $("selFuente").value = S.prefs.fuente;
+  $("chkVivo").checked = S.prefs.vivo; $("selCada").value = String(S.prefs.cada); $("selCada").disabled = !S.prefs.vivo;
+}
+
+// ---------- Eventos ----------
+$("segLiq").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.prefs.modo = b.dataset.v; if (b.dataset.v === "Fecha" && !S.prefs.fecha) S.prefs.fecha = habil(hoyAR(), 1); guardar(); pintarControles(); render(); });
+$("inFecha").addEventListener("change", e => { S.prefs.fecha = e.target.value || null; guardar(); render(); });
+$("selFuente").addEventListener("change", e => { S.prefs.fuente = e.target.value; S.prev = {}; guardar(); render(); });
+$("chkVivo").addEventListener("change", e => { S.prefs.vivo = e.target.checked; guardar(); pintarControles(); programar(); });
+$("selCada").addEventListener("change", e => { S.prefs.cada = +e.target.value; guardar(); programar(); });
+$("btnAct").addEventListener("click", () => { $("btnAct").textContent = "Actualizando…"; refrescar().finally(() => $("btnAct").textContent = "Actualizar"); });
+$("tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b){ mostrarTab(b.dataset.tab); try { history.replaceState(null, "", "#" + b.dataset.tab); } catch {} } });
+
+for (const tab of ["lecaps", "cer"]){
+  const tbl = $(tab === "lecaps" ? "tblL" : "tblC");
+  tbl.addEventListener("click", e => {
+    const th = e.target.closest("th[data-k]");
+    if (th){ const k = th.dataset.k, s = S.sort[tab]; S.sort[tab] = {k, dir: s.k === k ? -s.dir : (k === "t" || k === "tipo" ? 1 : -1)}; render(); return; }
+    const u = e.target.closest("[data-undo]");
+    if (u){ delete S.manual[u.dataset.undo]; render(); }
+  });
+  tbl.addEventListener("input", e => {
+    const inp = e.target.closest(".pin"); if (!inp) return;
+    const v = parseNum(inp.value), t = inp.dataset.t, vivo = vivoDe(t);
+    if (v > 0 && !(vivo && Math.abs(v - vivo) < 1e-9)) S.manual[t] = v; else delete S.manual[t];
+    render();
+  });
+  tbl.addEventListener("focusout", e => { if (e.target.classList?.contains("pin")) setTimeout(() => { if (!tbl.contains(document.activeElement)) render(); }, 0); });
+  tbl.addEventListener("keydown", e => {
+    if (e.key !== "Enter" || !e.target.classList.contains("pin")) return;
+    const ins = [...tbl.querySelectorAll(".pin")], i = ins.indexOf(e.target);
+    (ins[i + 1] || e.target).focus(); if (!ins[i + 1]) e.target.blur();
+    if (ins[i + 1]) ins[i + 1].select();
+  });
+
+  const ed = $(tab === "lecaps" ? "tblEdL" : "tblEdC"), msg = $(tab === "lecaps" ? "msgL" : "msgC");
+  ed.addEventListener("change", e => {
+    const inp = e.target.closest("input[data-f]"); if (!inp) return;
+    const k = +inp.closest("tr").dataset.k, f = inp.dataset.f;
+    let v = inp.value.trim();
+    if (f === "t") v = v.toUpperCase(); else if (["tem","vf","cb"].includes(f)) v = parseNum(v);
+    S[tab][k][f] = v; guardar(); pintarEditor(tab); render(); msg.textContent = "Guardado.";
+    if (tab === "cer" && f === "e" && v && S.cerSerie.size && !cerEn(habilAtras(v, 10))) cargarCer().then(() => { pintarEditor(tab); render(); });
+  });
+  ed.addEventListener("click", e => {
+    const b = e.target.closest("[data-del]"); if (!b) return;
+    S[tab].splice(+b.dataset.del, 1); guardar(); pintarEditor(tab); render(); msg.textContent = "Instrumento quitado.";
+  });
+}
+document.querySelectorAll("[data-clear]").forEach(b => b.addEventListener("click", () => {
+  const lista = S[b.dataset.clear].map(i => i.t); lista.forEach(t => delete S.manual[t]); render();
+}));
+document.querySelectorAll("[data-add]").forEach(b => b.addEventListener("click", () => {
+  const tab = b.dataset.add; S[tab].push({t:"", e:"", v:""}); guardar(); pintarEditor(tab);
+  $(`ed-${tab}-t-${S[tab].length - 1}`)?.focus();
+}));
+document.querySelectorAll("[data-reset]").forEach(b => {
+  let armado = false;
+  b.addEventListener("click", () => {
+    if (!armado){ armado = true; b.textContent = "Tocá de nuevo para confirmar"; setTimeout(() => { armado = false; b.textContent = "Restaurar originales"; }, 4000); return; }
+    armado = false; b.textContent = "Restaurar originales";
+    const tab = b.dataset.reset; S[tab] = (tab === "lecaps" ? LECAP_DEFAULT : CER_DEFAULT).map(x => ({...x}));
+    guardar(); pintarEditor(tab); render(); $(tab === "lecaps" ? "msgL" : "msgC").textContent = "Lista original restaurada.";
+  });
+});
+$("cerManual").addEventListener("input", e => { S.cerManual = parseNum(e.target.value); render(); });
+
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(render, 120); });
+
+// ---------- Arranque ----------
+(async function init(){
+  const h = (location.hash || "").slice(1);
+  if (h === "lecaps" || h === "cer") S.prefs.tab = h;
+  pintarControles(); mostrarTab(S.prefs.tab);
+  await cargarFeriados();
+  pintarControles(); render();
+  await Promise.allSettled([cargarPrecios(), cargarCer()]);
+  pintarEditor(S.prefs.tab); render(); programar();
+  setInterval(pintarEstado, 30000);
+})();
+})();
+</script>
+</body>
+</html>
