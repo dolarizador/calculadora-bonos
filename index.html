@@ -316,22 +316,22 @@ const CER_DEFAULT = [
   {t:"TZXO6", e:"2024-10-31", v:"2026-10-30"},
   {t:"X30N6", e:"2025-12-15", v:"2026-11-30"},
   {t:"TZXD6", e:"2024-03-15", v:"2026-12-15"},
-  {t:"X29E7", e:"2026-08-13", v:"2027-01-29"},
-  {t:"TZXM7", e:"2024-05-17", v:"2027-03-31"},
+  {t:"X29E7", e:"2026-08-14", v:"2027-01-29"},
+  {t:"TZXM7", e:"2024-05-20", v:"2027-03-31"},
   {t:"TZXA7", e:"2025-11-28", v:"2027-04-30"},
   {t:"TZXY7", e:"2025-12-15", v:"2027-05-31"},
   {t:"TZX27", e:"2024-02-01", v:"2027-06-30"},
   {t:"TZXS7", e:"2026-03-31", v:"2027-09-30"},
   {t:"TZXD7", e:"2024-03-15", v:"2027-12-15"},
-  {t:"TZXM8", e:"2026-03-30", v:"2028-03-31"},
+  {t:"TZXM8", e:"2026-04-01", v:"2028-03-31"},
   {t:"TZX28", e:"2024-02-01", v:"2028-06-30"},
   {t:"TXMJ8", e:"2026-05-15", v:"2028-06-30"},
   {t:"TZXS8", e:"2026-03-31", v:"2028-09-29"},
   {t:"TX28",  e:"2020-09-04", v:"2028-11-09"},
   {t:"TXMD8", e:"2026-06-12", v:"2028-12-15"},
-  {t:"TZXM9", e:"2026-03-31", v:"2029-03-28"},
+  {t:"TZXM9", e:"2026-04-01", v:"2029-03-28"},
   {t:"TXMJ9", e:"2026-04-30", v:"2029-06-29"},
-  {t:"TXMD9", e:"2026-06-30", v:"2029-12-14"},
+  {t:"TXMD9", e:"2026-06-12", v:"2029-12-14"},
   {t:"TXMJ0", e:"2026-06-12", v:"2030-06-28"},
 ];
 // Bonos con cupón: flujo por 100 VN original (sin ajustar). TX28: 2,25% anual 30/360, cupón 9/5 y 9/11, 10 amortizaciones semestrales desde 9/5/2024
@@ -350,7 +350,7 @@ const store = {
 
 const S = {
   lecaps: store.get("cb-lecaps", null) || LECAP_DEFAULT.map(x => ({...x})),
-  cer: store.get("cb-cer-v3", null) || CER_DEFAULT.map(x => ({...x})),
+  cer: store.get("cb-cer-v4", null) || CER_DEFAULT.map(x => ({...x})),
   prefs: Object.assign({modo:"T+1", fecha:null, fuente:"c", vivo:true, cada:5, tab:"lecaps"}, store.get("cb-prefs", {})),
   manual: {},            // precios escritos a mano: {ticker: precio}
   precios: {}, prev: {}, movidos: new Set(), ultMov: null,
@@ -360,7 +360,7 @@ const S = {
   sort: {lecaps:{k:"dias", dir:1}, cer:{k:"dias", dir:1}},
   timer: null, datos: {},
 };
-const guardar = () => { store.set("cb-prefs", S.prefs); store.set("cb-lecaps", S.lecaps); store.set("cb-cer-v3", S.cer); };
+const guardar = () => { store.set("cb-prefs", S.prefs); store.set("cb-lecaps", S.lecaps); store.set("cb-cer-v4", S.cer); };
 
 // ---------- Fechas ----------
 const hoyAR = () => new Date().toLocaleDateString("en-CA", {timeZone: TZ});
@@ -498,7 +498,7 @@ function calcCer(liq){
         if (r) Object.assign(f, {tir:r.tir*100, tna:(Math.pow(1+r.tir, .5)-1)*200, tem:(Math.pow(1+r.tir, 1/12)-1)*100, dm:r.dm, par: p / f.vt * 100});
       } else {
         const m = tasas(100 / (p / f.coef), dias);
-        Object.assign(f, {tir:m.tea*100, tna:m.tna*100, tem:m.tem*100, dm:m.dm, par: p / f.vt * 100});
+        Object.assign(f, {tir:m.tea*100, tna:(Math.pow(1+m.tea, .5)-1)*200, tem:m.tem*100, dm:m.dm, par: p / f.vt * 100});
       }
     }
     filas.push(f);
@@ -708,7 +708,7 @@ function notaTabla(tab, filas){
   let t = `Precio en vivo: ${fu}. Tasas actual/365.`;
   if (man) t += ` ${man} con precio manual (en violeta).`;
   if (sin.length) t += ` Sin precio: ${sin.join(", ")}.`;
-  if (tab === "cer") t += " Cupón cero: TIR real = (100 / (Precio / Coef. CER))^(365/días) − 1. Duales: pata CER (capital × coef. CER). TX28: TIR del flujo real de cupones y amortizaciones; su TNA es semestral.";
+  if (tab === "cer") t += " Cupón cero: TIR real = (100 / (Precio / Coef. CER))^(365/días) − 1. TNA real con capitalización semestral: 2 × ((1 + TIR)^½ − 1). Duales: pata CER (capital × coef. CER). TX28: TIR del flujo real de cupones y amortizaciones.";
   $(tab === "lecaps" ? "notaL" : "notaC").textContent = t;
 }
 
