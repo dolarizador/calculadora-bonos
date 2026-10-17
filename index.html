@@ -184,6 +184,15 @@ details.editor[open] summary{margin-bottom:12px}
 @keyframes cinta{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){.cinta{overflow-x:auto}.cinta-track{animation:none}}
 
+/* Simulador */
+.simout{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.simout .tile{border-left:0;box-shadow:inset 1px 0 0 var(--line),inset 0 1px 0 var(--line)}
+.simout .tile .val{font-size:1.2rem}
+.simout .tile .sub{white-space:normal}
+.simout .hero{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:8px 32px;align-items:baseline;padding:18px 16px;background:var(--surface-2)}
+.simout .hero .big{font-family:var(--f-mono);font-size:clamp(1.6rem,4vw,2.3rem);font-weight:600;line-height:1.1}
+.simout .hero .lbl{font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
 /* Mapa de calor */
 .heat{position:relative;width:100%;height:420px;border-radius:8px;overflow:hidden;background:var(--surface-2);margin-bottom:14px}
 .hb{position:absolute;box-sizing:border-box;border:1px solid var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -272,6 +281,7 @@ td.flashc.fu{animation-name:flashU} td.flashc.fd{animation-name:flashD}
     <button role="tab" data-tab="tamar" aria-selected="false">TAMAR</button>
     <button role="tab" data-tab="dl" aria-selected="false">Dólar linked</button>
     <button role="tab" data-tab="be" aria-selected="false">Breakevens</button>
+    <button role="tab" data-tab="sim" aria-selected="false">Simulador</button>
     <button role="tab" data-tab="cedears" aria-selected="false">CEDEARs</button>
     <button role="tab" data-tab="acciones" aria-selected="false">Acciones</button>
   </nav>
@@ -388,6 +398,24 @@ td.flashc.fu{animation-name:flashU} td.flashc.fd{animation-name:flashD}
           <span class="note" id="msgT"></span>
         </div>
       </details>
+    </div>
+  </section>
+
+  <!-- SIMULADOR -->
+  <section class="panel" data-panel="sim" hidden>
+    <div class="card">
+      <h2>Simulador de inversión</h2>
+      <p class="hint">Elegí un bono y un monto: te dice cuántos VN comprás, cuánto cobrás al vencimiento y cuánto ganás, comparado con la tasa fija al mismo plazo.</p>
+      <div class="rvbar">
+        <div class="ctl"><span>Familia</span><div class="seg" id="simFam"><button type="button" data-v="lecaps">Tasa fija</button><button type="button" data-v="cer">CER</button><button type="button" data-v="tamar">TAMAR</button><button type="button" data-v="dl">Dólar linked</button></div></div>
+        <label class="ctl"><span>Bono</span><select id="simT"></select></label>
+        <label class="ctl"><span>Monto a invertir $</span><input type="text" inputmode="decimal" id="simMonto" style="width:160px"></label>
+        <label class="ctl"><span>Precio</span><input type="text" inputmode="decimal" id="simPrecio" style="width:120px" placeholder="en vivo"></label>
+        <label class="ctl"><span>Comisión + derechos %</span><input type="text" inputmode="decimal" id="simCom" style="width:110px" placeholder="0"></label>
+      </div>
+      <div class="rvbar" id="simEsc"></div>
+      <div class="simout" id="simOut"></div>
+      <p class="note" id="simNota" style="margin-top:10px"></p>
     </div>
   </section>
 
@@ -592,7 +620,7 @@ const S = {
   cer: store.get("cb-cer-v4", null) || CER_DEFAULT.map(x => ({...x})),
   tamar: store.get("cb-tamar-v2", null) || TAMAR_DEFAULT.map(x => ({...x})),
   dl: store.get("cb-dl-v1", null) || DL_DEFAULT.map(x => ({...x})),
-  prefs: Object.assign({modo:"T+1", fecha:null, fuente:"c", tab:"lecaps", tema:null, tamProy:"p5", tcFuente:"vivo", cinta:true, expInf:null, expTam:null, expDev:null}, store.get("cb-prefs", {})),
+  prefs: Object.assign({modo:"T+1", fecha:null, fuente:"c", tab:"lecaps", tema:null, tamProy:"p5", tcFuente:"vivo", cinta:true, expInf:null, expTam:null, expDev:null, simFam:"lecaps", simT:null, simMonto:1000000, simCom:null, simInf:null, simDev:null, simTam:null}, store.get("cb-prefs", {})),
   manual: {},            // precios escritos a mano: {ticker: precio}
   precios: {}, prev: {}, movidos: new Set(), ultMov: null,
   feriados: new Set(FERIADOS_RESPALDO),
@@ -1021,6 +1049,10 @@ function pintarTape(liq){
     const top = fs.length ? fs.reduce((a,f) => f.tem > a.tem ? f : a) : null;
     tiles([["Liquidación", fFecha(liq), modo], ["TEM promedio", prom != null ? fmt(prom)+"%" : "—", `${fs.length} con precio`],
       ["Mayor TEM", top ? fmt(top.tem)+"%" : "—", top ? top.t : ""], ...mejoresPeores(fs)]);
+  } else if (S.prefs.tab === "sim"){
+    const fam = {lecaps:"Tasa fija", cer:"CER", tamar:"TAMAR", dl:"Dólar linked"}[S.prefs.simFam];
+    tiles([["Liquidación", fFecha(liq), modo], ["Familia", fam, ""], ["Bono", S.prefs.simT || "—", ""],
+      ["Monto", S.prefs.simMonto ? "$" + fmt(S.prefs.simMonto, 0) : "—", ""], ["Comisión", fmt(S.prefs.simCom || 0) + "%", "sobre el precio"]]);
   } else if (S.prefs.tab === "be"){
     const b = S.datos.be, prom = arr => { const v = arr.filter(x => x != null && isFinite(x)); return v.length ? v.reduce((a,c) => a + c, 0) / v.length : null; };
     const pi = prom(b.inf.map(r => r.mens)), pt = prom(b.tam.map(r => r.be)), pd = prom(b.dev.map(r => r.mens));
@@ -1295,6 +1327,106 @@ function pintarHeat(tab, fs){
   }).join("");
 }
 
+// ---------- Simulador ----------
+let simPrecio = null;                                     // precio manual del simulador (no se guarda)
+function simCalc(){
+  const P = S.prefs, fam = P.simFam, d = S.datos, liq = liquidacion();
+  const filas = ((d[fam] || {}).filas || []).filter(f => f.dias > 0 && !(fam === "cer" && f.tipo === "CUPÓN"));
+  const sel = $("simT"), lista = filas.map(f => f.t);
+  if (sel.dataset.list !== lista.join()){ sel.innerHTML = lista.map(t => `<option>${esc(t)}</option>`).join(""); sel.dataset.list = lista.join(); }
+  if (!lista.includes(P.simT)) P.simT = lista[0] || null;
+  sel.value = P.simT || "";
+  const f = filas.find(x => x.t === P.simT); if (!f) return null;
+  const precio = simPrecio > 0 ? simPrecio : f.p;
+  const r = {f, fam, liq, precio, dias: f.dias, venc: f.v, escenario: []};
+  if (!(precio > 0)) return r;
+  const monto = P.simMonto || 0, com = (P.simCom || 0) / 100;
+  r.vn = monto / (precio * (1 + com)) * 100;                    // VN que se compran con el monto, neto de comisión
+  r.inversion = r.vn / 100 * precio * (1 + com); r.comision = r.vn / 100 * precio * com;
+  const be = d.be || {inf: [], tam: [], dev: []};
+  // Cobro al vencimiento por cada 100 VN, según la familia
+  const legCer = t => {
+    const c = (d.cer?.filas || []).find(x => x.t === t); if (!c || !c.coef) return null;
+    const auto = (be.inf.find(x => x.t === t) || {}).mens;
+    const inf = P.simInf != null ? P.simInf : auto != null ? auto : 2;
+    const desde = d.cer.fechaAplic, hasta = habilAtras(c.v, 10);
+    const meses = Math.max(0, (dn(hasta) - dn(desde)) / 30.4375);
+    return {cobro: 100 * c.coef * Math.pow(1 + inf / 100, meses), inf, auto: P.simInf == null && auto != null};
+  };
+  const legTam = t => { const x = (d.tamar?.filas || []).find(y => y.t === t); return x && x.vf ? {cobro: x.vf, tam: d.tamar.proy} : null; };
+  if (fam === "lecaps") r.cobro100 = f.vf;
+  else if (fam === "cer"){
+    const c = legCer(f.t); if (c){ r.cobro100 = c.cobro; r.escenario.push(["inf", c.inf, c.auto]); }
+    if (f.t.startsWith("TXM")){ const tm = legTam(f.t); if (tm && c){ r.dual = {cer: c.cobro, tam: tm.cobro}; r.cobro100 = Math.max(c.cobro, tm.cobro); } }
+  } else if (fam === "tamar"){
+    const tm = legTam(f.t); if (tm){ r.cobro100 = tm.cobro; r.escenario.push(["tam", tm.tam]); }
+    if (f.t.startsWith("TXM")){ const c = legCer(f.t); if (c && tm){ r.dual = {cer: c.cobro, tam: tm.cobro}; r.cobro100 = Math.max(c.cobro, tm.cobro); r.escenario.push(["inf", c.inf, c.auto]); } }
+  } else if (fam === "dl"){
+    const auto = (be.dev.find(x => x.t === f.t) || {}).mens, tc = d.dl.tc;
+    const dev = P.simDev != null ? P.simDev : auto != null ? auto : 1.5;
+    if (tc){ r.tcVto = tc * Math.pow(1 + dev / 100, f.dias / 30); r.cobro100 = 100 * r.tcVto; r.usd = r.vn; r.escenario.push(["dev", dev, P.simDev == null && auto != null]); }
+  }
+  if (r.cobro100 == null) return r;
+  r.cobro = r.vn / 100 * r.cobro100;
+  r.ganancia = r.cobro - r.inversion;
+  const m = tasas(r.cobro / r.inversion, f.dias);
+  Object.assign(r, {dir: m.dir * 100, tna: m.tna * 100, tea: m.tea * 100, tem: m.tem * 100});
+  const fx = fijaA(f.dias, f.v);
+  if (fam !== "lecaps" && fx && !fx.fuera){ r.fija = fx.tea * 100; r.cobroFija = r.inversion * Math.pow(1 + fx.tea, f.dias / 365); r.difFija = r.cobro - r.cobroFija; r.parFija = fx.par; }
+  return r;
+}
+function pintarSim(){
+  const P = S.prefs;
+  document.querySelectorAll("#simFam button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === P.simFam));
+  if (document.activeElement !== $("simMonto")) $("simMonto").value = P.simMonto ? fmt(P.simMonto, 0) : "";
+  if (document.activeElement !== $("simCom")) $("simCom").value = P.simCom != null ? String(P.simCom).replace(".", ",") : "";
+  const r = simCalc();
+  if (!r){ $("simOut").innerHTML = `<div class="tile"><div class="sub">No hay bonos de esta familia con datos todavía.</div></div>`; $("simEsc").innerHTML = ""; $("simNota").textContent = ""; return; }
+  if (document.activeElement !== $("simPrecio")) $("simPrecio").value = simPrecio > 0 ? aInput(simPrecio) : "";
+  $("simPrecio").placeholder = r.f.p > 0 ? fmt(r.f.p, 3) + " (en vivo)" : "sin precio";
+  // escenario editable según la familia
+  const esc_ = [];
+  if (P.simFam === "cer" || (P.simFam === "tamar" && r.f.t.startsWith("TXM"))){
+    const e = r.escenario.find(x => x[0] === "inf");
+    esc_.push(`<label class="ctl"><span>Inflación mensual esperada %</span><input type="text" inputmode="decimal" id="simInf" style="width:150px" placeholder="${e ? fmt(e[1]) + (e[2] ? " (breakeven)" : "") : "2,00"}" value="${P.simInf != null ? String(P.simInf).replace(".", ",") : ""}"></label>`);
+  }
+  if (P.simFam === "dl"){
+    const e = r.escenario.find(x => x[0] === "dev");
+    esc_.push(`<label class="ctl"><span>Devaluación mensual esperada %</span><input type="text" inputmode="decimal" id="simDev" style="width:150px" placeholder="${e ? fmt(e[1]) + (e[2] ? " (breakeven)" : "") : "1,50"}" value="${P.simDev != null ? String(P.simDev).replace(".", ",") : ""}"></label>`);
+  }
+  if (P.simFam === "tamar") esc_.push(`<div class="ctl"><span>TAMAR proyectada</span><div style="font-family:var(--f-mono);padding:6px 0">${S.datos.tamar?.proy != null ? fmt(S.datos.tamar.proy) + "%" : "—"} <span class="dim">· se cambia en la solapa TAMAR</span></div></div>`);
+  const foco = document.activeElement?.id;
+  $("simEsc").innerHTML = esc_.join("");
+  if (foco && $(foco) && ["simInf", "simDev"].includes(foco)){ const el = $(foco); el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+  for (const [id, k] of [["simInf", "simInf"], ["simDev", "simDev"]]) if ($(id)) $(id).oninput = e => { P[k] = parseNum(e.target.value); guardar(); render(); };
+  if (!(r.precio > 0)){ $("simOut").innerHTML = `<div class="tile"><div class="sub">${esc(r.f.t)} no tiene precio: escribilo en el campo Precio.</div></div>`; $("simNota").textContent = ""; return; }
+  if (r.cobro == null){ $("simOut").innerHTML = `<div class="tile"><div class="sub">Faltan datos para proyectar el cobro (CER, TAMAR o tipo de cambio del BCRA).</div></div>`; $("simNota").textContent = ""; return; }
+  const t = (l, v, sub, cl) => `<div class="tile"><div class="lbl">${l}</div><div class="val ${cl || ""}">${v}</div><div class="sub">${sub || "&nbsp;"}</div></div>`;
+  const gan = signo(r.ganancia);
+  $("simOut").innerHTML = `<div class="hero">
+      <div><div class="lbl">Invertís</div><div class="big">$${fmt(r.inversion, 0)}</div></div>
+      <div><div class="lbl">Cobrás el ${fFecha(r.venc)}</div><div class="big">$${fmt(r.cobro, 0)}</div></div>
+      <div><div class="lbl">Ganás</div><div class="big ${gan}">$${fmt(r.ganancia, 0)}</div></div>
+    </div>` + [
+    t("VN que comprás", fmt(r.vn, 0), `a ${fmt(r.precio, 3)}${r.comision ? ` · comisión $${fmt(r.comision, 0)}` : ""}`),
+    t("Plazo", `${r.dias} días`, `liquida ${fFecha(r.liq)}`),
+    t("Rendimiento directo", `${fmt(r.dir)}%`, "en todo el plazo", gan),
+    t("TNA", `${fmt(r.tna)}%`, "simple, actual/365"),
+    t("TEA", `${fmt(r.tea)}%`, ""),
+    t("TEM", `${fmt(r.tem)}%`, ""),
+    r.usd != null ? t("En dólares", `US$ ${fmt(r.usd, 0)}`, `dólar al vencimiento $${fmt(r.tcVto, 2)}`) : "",
+    r.dual ? t("Dual: paga la pata", r.dual.cer >= r.dual.tam ? "CER" : "TAMAR", `CER $${fmt(r.vn / 100 * r.dual.cer, 0)} · TAMAR $${fmt(r.vn / 100 * r.dual.tam, 0)}`) : "",
+    r.difFija != null ? t("vs tasa fija al mismo plazo", Math.abs(r.difFija) < 1 ? "$0 (empata)" : `${r.difFija > 0 ? "+" : "−"}$${fmt(Math.abs(r.difFija), 0)}`, `con TEA fija ${fmt(r.fija)}%${r.parFija ? " (" + esc(r.parFija) + ")" : ""} cobrarías $${fmt(r.cobroFija, 0)}`, signo(r.difFija)) : "",
+  ].join("");
+  const notas = {
+    lecaps: "Tasa fija: el cobro al vencimiento es el pago final del bono, sin supuestos.",
+    cer: "CER: el cobro = VN × coeficiente CER al vencimiento, proyectando el CER con la inflación mensual (por defecto, la breakeven de ese bono: la que lo hace rendir igual que la tasa fija). Con tu propia inflación ves cuánto ganarías si se cumple.",
+    tamar: "TAMAR: el cobro usa la TAMAR proyectada de la solapa TAMAR. En los duales CER/TAMAR se cobra la pata más alta.",
+    dl: "Dólar linked: cobrás 100 dólares por cada 100 VN, en pesos al A3500 del vencimiento. El dólar se proyecta con la devaluación mensual (por defecto, la implícita contra la tasa fija).",
+  };
+  $("simNota").textContent = notas[P.simFam] + " No incluye impuestos.";
+}
+
 // ---------- Render: breakevens ----------
 function celdaFija(r){
   if (r.fx.fuera) return `<td class="dim" title="Plazo fuera de la curva de tasa fija">fuera de curva</td>`;
@@ -1478,6 +1610,8 @@ function render(){
       f => f.tipo === "BONCAP" ? "var(--boncap)" : "var(--accent)",
       f => `<b>${esc(f.t)}</b> · ${f.tipo}${f.manual ? " · manual" : ""}<br>TNA ${fmt(f.tna)}% · TEM ${fmt(f.tem)}%<br>Precio ${fmt(f.p,3)} · ${f.dias} días${f.vsc != null ? `<br>vs curva ${fPb(f.vsc)} pb` : ""}`);
     pintarTabla("lecaps", d.filas); notaTabla("lecaps", d.filas);
+  } else if (S.prefs.tab === "sim"){
+    pintarSim();
   } else if (S.prefs.tab === "be"){
     pintarBE(S.datos.be);
   } else if (URL_RV[S.prefs.tab]){
@@ -1510,7 +1644,7 @@ function mostrarTab(tab){
   document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === tab));
   document.querySelectorAll("[data-panel]").forEach(p => p.hidden = p.dataset.panel !== tab);
   if (URL_RV[tab]){ render(); if (!S.rv[tab]) cargarRV(tab).then(render); return; }
-  if (tab === "be"){ render(); return; }
+  if (tab === "be" || tab === "sim"){ render(); return; }
   pintarEditor(tab); render();
 }
 function pintarControles(){
@@ -1527,6 +1661,11 @@ function pintarControles(){
 $("segLiq").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.prefs.modo = b.dataset.v; if (b.dataset.v === "Fecha" && !S.prefs.fecha) S.prefs.fecha = habil(hoyAR(), 1); guardar(); pintarControles(); render(); });
 $("inFecha").addEventListener("change", e => { S.prefs.fecha = e.target.value || null; guardar(); render(); });
 $("selFuente").addEventListener("change", e => { S.prefs.fuente = e.target.value; S.prev = {}; guardar(); render(); });
+$("simFam").addEventListener("click", e => { const b = e.target.closest("button"); if (b){ S.prefs.simFam = b.dataset.v; S.prefs.simT = null; simPrecio = null; guardar(); render(); } });
+$("simT").addEventListener("change", e => { S.prefs.simT = e.target.value; simPrecio = null; guardar(); render(); });
+$("simMonto").addEventListener("input", e => { S.prefs.simMonto = parseNum(e.target.value.replace(/\./g, "")); guardar(); render(); });
+$("simPrecio").addEventListener("input", e => { simPrecio = parseNum(e.target.value); render(); });
+$("simCom").addEventListener("input", e => { S.prefs.simCom = parseNum(e.target.value); guardar(); render(); });
 for (const k of ["expInf", "expTam", "expDev"]) $(k).addEventListener("input", e => { S.prefs[k] = parseNum(e.target.value); guardar(); render(); });
 $("chkCinta").addEventListener("change", e => { S.prefs.cinta = e.target.checked; guardar(); cinta2HTML = ""; if (S.prefs.cinta) cargarCinta(); pintarCinta(); pintarCinta2(); });
 // Modo negro: sigue al sistema hasta que lo elegís a mano
@@ -1625,7 +1764,7 @@ let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTime
 // ---------- Arranque ----------
 (async function init(){
   const h = (location.hash || "").slice(1);
-  const TABS = ["lecaps", "cer", "tamar", "dl", "be", "cedears", "acciones"];
+  const TABS = ["lecaps", "cer", "tamar", "dl", "be", "sim", "cedears", "acciones"];
   if (TABS.includes(h)) S.prefs.tab = h;
   if (!TABS.includes(S.prefs.tab)) S.prefs.tab = "lecaps";
   pintarControles(); mostrarTab(S.prefs.tab);
