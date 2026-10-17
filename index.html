@@ -352,11 +352,13 @@ td.flashc.fu{animation-name:flashU} td.flashc.fd{animation-name:flashD}
   <section class="panel" data-panel="tamar" hidden>
     <div class="card">
       <h2>TAMAR proyectada</h2>
-      <p class="hint">La tira pasada sale del BCRA (TAMAR bancos privados). Los días que faltan se completan con la última TAMAR conocida, o con la que escribas acá.</p>
+      <p class="hint">La tira pasada sale del BCRA (TAMAR bancos privados). Los días que faltan se completan con la TAMAR proyectada: por defecto el promedio de las últimas 5 ruedas, como Greenfield.</p>
       <div class="cerbox">
-        <div class="ctl"><span>Última conocida</span><div class="big" id="tamFecha">—</div></div>
-        <div class="ctl"><span>Valor BCRA</span><div class="big" id="tamValor">—</div></div>
-        <label class="ctl"><span>TAMAR a proyectar (opcional)</span><input type="text" inputmode="decimal" id="tamManual" placeholder="pisa la última" style="width:150px"></label>
+        <div class="ctl"><span>Proyectar con</span>
+          <div class="seg" id="segTam"><button type="button" data-v="p5">Promedio 5 ruedas</button><button type="button" data-v="ult">Última</button></div></div>
+        <div class="ctl"><span>TAMAR proyectada</span><div class="big" id="tamProy">—</div><span class="note" id="tamProySub"></span></div>
+        <div class="ctl"><span>Última BCRA</span><div class="big" id="tamValor">—</div><span class="note" id="tamFecha"></span></div>
+        <label class="ctl"><span>TAMAR manual (opcional)</span><input type="text" inputmode="decimal" id="tamManual" placeholder="pisa la proyección" style="width:150px"></label>
         <span class="note" id="tamEstado"></span>
       </div>
     </div>
@@ -555,7 +557,7 @@ const TAMAR_DEFAULT = [
   {t:"TMF27", e:"2026-02-13", v:"2027-02-26", mg:6.5},
   {t:"TML27", e:"2026-06-30", v:"2027-07-30", mg:5.4},
   {t:"TMG27", e:"2026-04-01", v:"2027-08-31", mg:6},
-  {t:"TMVE8", e:"2026-07-30", v:"2028-01-31", mg:0},
+  {t:"TMVE8", e:"2026-07-30", v:"2028-01-31", mg:0, tcEm:1499.8387},   // VN en USD: la pata TAMAR corre sobre VN × A3500 (28/07/2026)
   {t:"TMF28", e:"2026-04-20", v:"2028-02-25", mg:6.5},
   {t:"TXMJ8", e:"2026-05-15", v:"2028-06-30", mg:3},
   {t:"TMG28", e:"2026-04-30", v:"2028-08-31", mg:6.9},
@@ -588,9 +590,9 @@ const store = {
 const S = {
   lecaps: store.get("cb-lecaps", null) || LECAP_DEFAULT.map(x => ({...x})),
   cer: store.get("cb-cer-v4", null) || CER_DEFAULT.map(x => ({...x})),
-  tamar: store.get("cb-tamar-v1", null) || TAMAR_DEFAULT.map(x => ({...x})),
+  tamar: store.get("cb-tamar-v2", null) || TAMAR_DEFAULT.map(x => ({...x})),
   dl: store.get("cb-dl-v1", null) || DL_DEFAULT.map(x => ({...x})),
-  prefs: Object.assign({modo:"T+1", fecha:null, fuente:"c", tab:"lecaps", tema:null, tcFuente:"vivo", cinta:true, expInf:null, expTam:null, expDev:null}, store.get("cb-prefs", {})),
+  prefs: Object.assign({modo:"T+1", fecha:null, fuente:"c", tab:"lecaps", tema:null, tamProy:"p5", tcFuente:"vivo", cinta:true, expInf:null, expTam:null, expDev:null}, store.get("cb-prefs", {})),
   manual: {},            // precios escritos a mano: {ticker: precio}
   precios: {}, prev: {}, movidos: new Set(), ultMov: null,
   feriados: new Set(FERIADOS_RESPALDO),
@@ -604,7 +606,7 @@ const S = {
   sort: {lecaps:{k:"dias", dir:1}, cer:{k:"dias", dir:1}, tamar:{k:"dias", dir:1}, dl:{k:"dias", dir:1}, cedears:{k:"t", dir:1}, acciones:{k:"t", dir:1}},
   timer: null, datos: {},
 };
-const guardar = () => { store.set("cb-prefs", S.prefs); store.set("cb-lecaps", S.lecaps); store.set("cb-cer-v4", S.cer); store.set("cb-tamar-v1", S.tamar); store.set("cb-dl-v1", S.dl); };
+const guardar = () => { store.set("cb-prefs", S.prefs); store.set("cb-lecaps", S.lecaps); store.set("cb-cer-v4", S.cer); store.set("cb-tamar-v2", S.tamar); store.set("cb-dl-v1", S.dl); };
 
 // ---------- Fechas ----------
 const hoyAR = () => new Date().toLocaleDateString("en-CA", {timeZone: TZ});
@@ -767,9 +769,13 @@ function tiraTamar(i){
   }
   return {n1, s1, n2};
 }
+function promUltimas(n){
+  const fs = [...S.tamSerie.keys()].sort().slice(-n);
+  return fs.length ? fs.reduce((a, k) => a + S.tamSerie.get(k), 0) / fs.length : null;
+}
 function calcTamar(liq){
-  const ult = ultimaTamar();
-  const proy = S.tamManual > 0 ? S.tamManual : ult ? ult.v : null;
+  const ult = ultimaTamar(), p5 = promUltimas(5);
+  const proy = S.tamManual > 0 ? S.tamManual : S.prefs.tamProy === "ult" ? (ult ? ult.v : null) : p5;
   const filas = [];
   for (const i of S.tamar){
     if (!i.t || !i.v || !i.e) continue;
@@ -787,23 +793,19 @@ function calcTamar(liq){
       }
       if (n1 + n2 > 0){
         f.prom = (s1 + n2 * proy) / (n1 + n2); f.conocido = n1 / (n1 + n2) * 100;
-        f.vf = 100 * Math.pow(1 + temTamar(f.prom + mg), dias30360(i.e, i.v) / 30);
+        f.vf = 100 * (+i.tcEm > 0 ? +i.tcEm : 1) * Math.pow(1 + temTamar(f.prom + mg), dias30360(i.e, i.v) / 30);
       }
     }
     if (p && f.vf){
       const m = tasas(f.vf / p, dias);
-      Object.assign(f, {tir:m.tea*100, tna:(Math.pow(1+m.tea, .5)-1)*200, tem:m.tem*100, dm:m.dm});
-      // margen implícito: spread sobre la TAMAR proyectada que paga el bono desde la liquidación
-      const meses = dias30360(liq, i.v) / 30;
-      if (meses > 0){
-        const anual = Math.pow(Math.pow(f.vf / p, 1 / meses), 12);
-        f.mimp = (Math.pow(anual, 32 / 365) - 1) * 365 / 32 * 100 - proy;
-      }
+      // TNA equivalente a 32 días (comparable con la TAMAR) y margen = esa TNA − TAMAR proyectada (convención Greenfield)
+      const tna32 = (Math.pow(1 + m.tea, 32 / 365) - 1) * 365 / 32 * 100;
+      Object.assign(f, {tir:m.tea*100, tna:tna32, tem:m.tem*100, dm:m.dm, mimp: tna32 - proy, tm: f.prom + mg});
     }
     filas.push(f);
   }
   filas.sort((a,b) => a.dias - b.dias);
-  return {filas, fit: ponerVsCurva(filas, "tir"), ult, proy};
+  return {filas, fit: ponerVsCurva(filas, "tir"), ult, proy, p5};
 }
 
 function ultimoDe(serie, hasta){
@@ -1024,7 +1026,7 @@ function pintarTape(liq){
     const pi = prom(b.inf.map(r => r.mens)), pt = prom(b.tam.map(r => r.be)), pd = prom(b.dev.map(r => r.mens));
     tiles([["Liquidación", fFecha(liq), modo], ["Inflación BE", pi != null ? fmt(pi) + "%" : "—", "mensual, promedio"],
       ["TAMAR implícita", pt != null ? fmt(pt) + "%" : "—", "TNA, promedio"], ["Deval. implícita", pd != null ? fmt(pd) + "%" : "—", "mensual, promedio"],
-      ["TAMAR actual", S.datos.tamar?.proy != null ? fmt(S.datos.tamar.proy) + "%" : "—", "última conocida"]]);
+      ["TAMAR proyectada", S.datos.tamar?.proy != null ? fmt(S.datos.tamar.proy) + "%" : "—", S.prefs.tamProy === "ult" ? "última publicada" : "prom. 5 ruedas"]]);
   } else if (URL_RV[S.prefs.tab]){
     const fs = (S.datos.rv || []).filter(f => f.var != null);
     const sube = fs.filter(f => f.var > 0).length, baja = fs.filter(f => f.var < 0).length;
@@ -1041,7 +1043,7 @@ function pintarTape(liq){
   } else if (S.prefs.tab === "tamar"){
     const d = S.datos.tamar, fs = d.filas.filter(f => razonable(f, "tir"));
     const prom = fs.length ? fs.reduce((a,f)=>a+f.tir,0)/fs.length : null;
-    tiles([["Liquidación", fFecha(liq), modo], ["TAMAR proyectada", d.proy != null ? fmt(d.proy)+"%" : "—", S.tamManual > 0 ? "manual" : d.ult ? "última " + fFecha(d.ult.fecha) : "sin dato"],
+    tiles([["Liquidación", fFecha(liq), modo], ["TAMAR proyectada", d.proy != null ? fmt(d.proy)+"%" : "—", S.tamManual > 0 ? "manual" : S.prefs.tamProy === "ult" ? "última publicada" : "prom. 5 ruedas"],
       ["TIR promedio", prom != null ? fmt(prom)+"%" : "—", `${fs.length} con precio`], ...mejoresPeores(fs)]);
   } else {
     const d = S.datos.cer, fs = d.filas.filter(f => razonable(f, "tir"));
@@ -1118,9 +1120,9 @@ const COLS = {
     {k:"tipo", h:"Tipo", l:true},
   ],
   tamar: [
-    {k:"t", h:"Ticker", l:true}, {k:"p", h:"Precio"}, {k:"var", h:"Var %"}, {k:"tir", h:"TIR %", strong:true}, {k:"tna", h:"TNA %"},
-    {k:"tem", h:"TEM %"}, {k:"dm", h:"Dur. Mod.", d:3}, {k:"mimp", h:"Margen implícito %", strong:true}, {k:"mg", h:"Margen emisión %"},
-    {k:"prom", h:"TAMAR prom. %"}, {k:"conocido", h:"% conocida", d:0}, {k:"vf", h:"Pago final proy.", d:3}, {k:"dias", h:"Días", d:0},
+    {k:"t", h:"Ticker", l:true}, {k:"p", h:"Precio"}, {k:"var", h:"Var %"}, {k:"tna", h:"TNA 32 d %", strong:true}, {k:"tir", h:"TIR %"},
+    {k:"tem", h:"TEM %"}, {k:"mimp", h:"Margen %", strong:true}, {k:"dm", h:"Dur. Mod.", d:3}, {k:"mg", h:"Margen emisión %"},
+    {k:"tm", h:"TAMAR + margen %"}, {k:"conocido", h:"% conocida", d:0}, {k:"vf", h:"VT proy.", d:2}, {k:"dias", h:"Días", d:0},
     {k:"v", h:"Vencimiento"}, {k:"tipo", h:"Tipo", l:true},
   ],
 };
@@ -1173,7 +1175,7 @@ function notaTabla(tab, filas){
   if (sin.length) t += ` Sin precio: ${sin.join(", ")}.`;
   if (tab === "cer") t += " Cupón cero: TIR real = (100 / (Precio / Coef. CER))^(365/días) − 1. TNA real con capitalización semestral: 2 × ((1 + TIR)^½ − 1). Duales: pata CER (capital × coef. CER). TX28: TIR del flujo real de cupones y amortizaciones.";
   if (tab === "dl") t += " Precio USD = precio en pesos / tipo de cambio (último mayorista operado o A3500, según lo elegido). TIR USD = (100 / precio USD)^(365/días) − 1; TNA simple. Dólar breakeven: el A3500 al vencimiento que te deja igual que la curva de Lecaps al mismo plazo (si el dólar termina arriba, gana el dollar linked). Deval. implícita: cuánto tiene que subir el A3500 desde hoy para llegar al breakeven.";
-  if (tab === "tamar") t += " Pago final = 100 × (1 + TEM)^(meses 30/360), con TEM = [(1 + (TAMAR prom. + margen) × 32/365)^(365/32)]^(1/12) − 1. TAMAR prom. = días conocidos del BCRA + días restantes con la TAMAR proyectada. Margen implícito = spread sobre la TAMAR proyectada que paga el bono a ese precio. TNA con capitalización semestral. Duales: solo la pata TAMAR.";
+  if (tab === "tamar") t += " VT proy. = 100 × (1 + TEM)^(meses 30/360), con TEM = [(1 + (TAMAR prom. + margen) × 32/365)^(365/32)]^(1/12) − 1. TAMAR prom. = días conocidos del BCRA + días restantes con la TAMAR proyectada. TNA 32 d = TNA equivalente a un plazo fijo de 32 días, comparable con la TAMAR; Margen = TNA 32 d − TAMAR proyectada (lo que paga el bono por encima de la TAMAR a ese precio). Duales: solo la pata TAMAR. TMVE8: VN en dólares, la pata TAMAR corre sobre VN × A3500 de emisión.";
   $(IDS[tab].nota).textContent = t;
 }
 
@@ -1187,10 +1189,13 @@ function pintarCerBox(d){
 }
 
 function pintarTamBox(d){
-  $("tamFecha").textContent = d.ult ? fFecha(d.ult.fecha) : "—";
+  document.querySelectorAll("#segTam button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === S.prefs.tamProy));
+  $("tamProy").textContent = d.proy != null ? fmt(d.proy, 4) + "%" : "—";
+  $("tamProySub").textContent = S.tamManual > 0 ? "manual" : S.prefs.tamProy === "ult" ? "última publicada" : "promedio últimas 5 ruedas";
+  $("tamFecha").textContent = d.ult ? fFecha(d.ult.fecha) : "";
   $("tamValor").textContent = d.ult ? fmt(d.ult.v, 4) + "%" : "—";
   $("tamEstado").textContent = S.tamOk === null ? "Cargando serie del BCRA…" :
-    S.tamOk ? (S.tamManual > 0 ? `Proyectando con ${fmt(S.tamManual)}% (manual).` : "Proyectando con la última TAMAR conocida.") :
+    S.tamOk ? "" :
     "No pude leer la TAMAR del BCRA desde este navegador. Escribí la TAMAR a proyectar; sin la tira pasada el promedio usa solo ese valor.";
 }
 
@@ -1309,7 +1314,7 @@ function pintarBE(b){
   const P = S.prefs;
   tablaBE("tblBI", [["Ticker",1],["Vencimiento"],["Días"],["TIR real %"],["Tasa fija TEA %"],["Inflación BE anual %"],["Inflación BE mensual %"],["Con tu escenario",1]],
     b.inf.map(r => `<tr><td class="l tk">${esc(r.t)}</td><td>${fFecha(r.v)}</td><td>${r.dias}</td><td>${fmt(r.tir)}</td>${celdaFija(r)}<td>${fmt(r.anual)}</td><td class="strong">${fmt(r.mens)}</td>${conviene(P.expInf, r.mens, "CER", "Tasa fija")}</tr>`));
-  tablaBE("tblBT", [["Ticker",1],["Vencimiento"],["Días"],["TIR % (TAMAR actual)"],["Tasa fija TEA %"],["TAMAR implícita (TNA %)"],["TAMAR implícita (TEM %)"],["vs TAMAR actual (pb)"],["Con tu escenario",1]],
+  tablaBE("tblBT", [["Ticker",1],["Vencimiento"],["Días"],["TIR % (TAMAR actual)"],["Tasa fija TEA %"],["TAMAR implícita (TNA %)"],["TAMAR implícita (TEM %)"],["vs TAMAR proyectada (pb)"],["Con tu escenario",1]],
     b.tam.map(r => `<tr><td class="l tk">${esc(r.t)}</td><td>${fFecha(r.v)}</td><td>${r.dias}</td><td>${fmt(r.tir)}</td>${celdaFija(r)}<td class="strong">${fmt(r.be)}</td><td>${fmt(r.beTem)}</td><td>${r.vsAct == null ? "–" : `<span class="pill ${signo(-r.vsAct)}">${fPb(r.vsAct)}</span>`}</td>${conviene(P.expTam, r.be, "TAMAR", "Tasa fija")}</tr>`));
   tablaBE("tblBD", [["Ticker",1],["Vencimiento"],["Días"],["TIR USD %"],["Tasa fija TEA %"],["Dólar breakeven"],["Deval. total %"],["Deval. mensual %"],["Con tu escenario",1]],
     b.dev.map(r => `<tr><td class="l tk">${esc(r.t)}</td><td>${fFecha(r.v)}</td><td>${r.dias}</td><td>${fmt(r.tir)}</td>${celdaFija(r)}<td>${fmt(r.tcbe)}</td><td>${fmt(r.total)}</td><td class="strong">${fmt(r.mens)}</td>${conviene(P.expDev, r.mens, "Dollar linked", "Tasa fija")}</tr>`));
@@ -1489,7 +1494,7 @@ function render(){
     pintarTamBox(d);
     pintarCurva({svg:"svgT", chart:"chartT", tip:"tipT"}, d.filas, "tir", d.fit, "TIR",
       f => f.tipo === "TAMAR" ? "var(--accent)" : "var(--boncap)",
-      f => `<b>${esc(f.t)}</b> · ${f.tipo}${f.manual ? " · manual" : ""}<br>TIR ${fmt(f.tir)}% · TEM ${fmt(f.tem)}%<br>Margen implícito ${fmt(f.mimp)}% · emisión ${fmt(f.mg)}%<br>Precio ${fmt(f.p,3)} · ${f.dias} días`);
+      f => `<b>${esc(f.t)}</b> · ${f.tipo}${f.manual ? " · manual" : ""}<br>TIR ${fmt(f.tir)}% · TEM ${fmt(f.tem)}%<br>TNA 32 d ${fmt(f.tna)}% · margen ${fmt(f.mimp)}% (emisión ${fmt(f.mg)}%)<br>Precio ${fmt(f.p,3)} · ${f.dias} días`);
     pintarTabla("tamar", d.filas); notaTabla("tamar", d.filas);
   } else {
     const d = S.datos.cer;
@@ -1595,6 +1600,7 @@ document.querySelectorAll("[data-reset]").forEach(b => {
 });
 $("cerManual").addEventListener("input", e => { S.cerManual = parseNum(e.target.value); render(); });
 $("tamManual").addEventListener("input", e => { S.tamManual = parseNum(e.target.value); render(); });
+$("segTam").addEventListener("click", e => { const b = e.target.closest("button"); if (b){ S.prefs.tamProy = b.dataset.v; guardar(); render(); } });
 $("tcManual").addEventListener("input", e => { S.tcManual = parseNum(e.target.value); render(); });
 $("segTc").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.prefs.tcFuente = b.dataset.v; guardar(); render(); });
 
