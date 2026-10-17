@@ -22,15 +22,17 @@
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0b121c; --surface:#111b28; --surface-2:#172435; --ink:#e4ecf5; --muted:#8798ae; --line:#22344a;
-  --accent:#6ea2ef; --accent-soft:rgba(110,162,239,.16); --boncap:#e7a24f;
+  --bg:#000000; --surface:#0b0c0e; --surface-2:#15171b; --ink:#eef1f5; --muted:#8b939f; --line:#22262d;
+  --accent:#6ea2ef; --accent-soft:rgba(110,162,239,.15); --boncap:#e7a24f;
   --pos:#39c981; --pos-bg:rgba(57,201,129,.14); --neg:#ff6f5e; --neg-bg:rgba(255,111,94,.14);
-  --flash:rgba(240,190,60,.42); --manual:#c3a0f5; --manual-bg:rgba(195,160,245,.14); color-scheme:dark}}
+  --flash:rgba(240,190,60,.42); --manual:#c3a0f5; --manual-bg:rgba(195,160,245,.14);
+  --tape-bg:#0b0c0e; --tape-line:#22262d; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0b121c; --surface:#111b28; --surface-2:#172435; --ink:#e4ecf5; --muted:#8798ae; --line:#22344a;
-  --accent:#6ea2ef; --accent-soft:rgba(110,162,239,.16); --boncap:#e7a24f;
+  --bg:#000000; --surface:#0b0c0e; --surface-2:#15171b; --ink:#eef1f5; --muted:#8b939f; --line:#22262d;
+  --accent:#6ea2ef; --accent-soft:rgba(110,162,239,.15); --boncap:#e7a24f;
   --pos:#39c981; --pos-bg:rgba(57,201,129,.14); --neg:#ff6f5e; --neg-bg:rgba(255,111,94,.14);
-  --flash:rgba(240,190,60,.42); --manual:#c3a0f5; --manual-bg:rgba(195,160,245,.14); color-scheme:dark}
+  --flash:rgba(240,190,60,.42); --manual:#c3a0f5; --manual-bg:rgba(195,160,245,.14);
+  --tape-bg:#0b0c0e; --tape-line:#22262d; color-scheme:dark}
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -50,6 +52,9 @@ button,select,input{font:inherit;color:inherit}
 .status{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-family:var(--f-mono);font-size:.78rem}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--muted);white-space:nowrap}
 .chip b{color:var(--ink);font-weight:600}
+.chipbtn{cursor:pointer;font:inherit}
+.chipbtn:hover{border-color:var(--accent)}
+.luna{width:10px;height:10px;border-radius:50%;background:linear-gradient(90deg,var(--ink) 50%,transparent 50%);box-shadow:inset 0 0 0 1.5px var(--ink)}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
 .dot.on{background:var(--pos);animation:pulso 2s infinite}
 .dot.err{background:var(--neg)}
@@ -202,7 +207,7 @@ td.flashc{animation:flash 2.4s ease-out}
     <div class="status" aria-live="polite">
       <span class="chip"><span class="dot" id="dotVivo"></span><span id="txtVivo">Conectando…</span></span>
       <span class="chip" id="chipMercado">Mercado —</span>
-      <span class="chip">Mov. <b id="txtMov">—</b></span>
+      <button type="button" class="chip chipbtn" id="btnTema" aria-pressed="false"><span class="luna" aria-hidden="true"></span><b id="txtTema">Modo negro</b></button>
     </div>
   </header>
 
@@ -231,12 +236,7 @@ td.flashc{animation:flash 2.4s ease-out}
     <div class="ctl">
       <span>Actualización</span>
       <div class="row">
-        <label class="toggle"><input type="checkbox" id="chkVivo" checked> En vivo</label>
         <label class="toggle"><input type="checkbox" id="chkCinta" checked> Cinta</label>
-        <select id="selCada" aria-label="Cada cuánto consultar">
-          <option value="3">3 s</option><option value="5">5 s</option><option value="10">10 s</option>
-          <option value="30">30 s</option><option value="60">60 s</option>
-        </select>
         <button type="button" class="btn" id="btnAct">Actualizar</button>
       </div>
     </div>
@@ -566,7 +566,7 @@ const S = {
   cer: store.get("cb-cer-v4", null) || CER_DEFAULT.map(x => ({...x})),
   tamar: store.get("cb-tamar-v1", null) || TAMAR_DEFAULT.map(x => ({...x})),
   dl: store.get("cb-dl-v1", null) || DL_DEFAULT.map(x => ({...x})),
-  prefs: Object.assign({modo:"T+1", fecha:null, fuente:"c", vivo:true, cada:5, tab:"lecaps", tcFuente:"vivo", cinta:true, expInf:null, expTam:null, expDev:null}, store.get("cb-prefs", {})),
+  prefs: Object.assign({modo:"T+1", fecha:null, fuente:"c", tab:"lecaps", tema:null, tcFuente:"vivo", cinta:true, expInf:null, expTam:null, expDev:null}, store.get("cb-prefs", {})),
   manual: {},            // precios escritos a mano: {ticker: precio}
   precios: {}, prev: {}, movidos: new Set(), ultMov: null,
   feriados: new Set(FERIADOS_RESPALDO),
@@ -953,7 +953,7 @@ async function refrescar(){
 }
 function programar(){
   clearInterval(S.timer);
-  if (S.prefs.vivo) S.timer = setInterval(refrescar, S.prefs.cada * 1000);
+  S.timer = setInterval(refrescar, 10000);                     // se actualiza solo cada 10 s
   pintarEstado();
 }
 
@@ -965,13 +965,12 @@ function mercadoAbierto(){
   return t >= 11*60 && t < 17*60;
 }
 function pintarEstado(){
-  $("dotVivo").className = "dot" + (S.estado === "error" ? " err" : S.prefs.vivo && S.estado === "ok" ? " on" : "");
+  $("dotVivo").className = "dot" + (S.estado === "error" ? " err" : S.estado === "ok" ? " on" : "");
   $("txtVivo").textContent = S.estado === "cargando" ? "Conectando…" :
     S.estado === "error" ? `Sin precios en vivo · ${S.hora || ""}` :
-    `${S.prefs.vivo ? "En vivo · " + S.prefs.cada + " s" : "En pausa"} · ${S.hora}`;
+    `En vivo · ${S.hora}`;
   const ab = mercadoAbierto();
   $("chipMercado").innerHTML = `Mercado <b class="${ab ? "up" : ""}">${ab ? "abierto" : "cerrado"}</b>`;
-  $("txtMov").textContent = S.ultMov ? `${S.ultMov.hora} ${S.ultMov.t.join(", ")}` : "—";
   const b = $("banner");
   b.hidden = S.estado !== "error";
   b.textContent = "No pude leer los precios de data912 desde este navegador. Podés escribir los precios a mano en la columna Precio.";
@@ -1448,7 +1447,7 @@ function pintarControles(){
   $("selFuente").value = S.prefs.fuente;
   $("chkCinta").checked = S.prefs.cinta;
   for (const k of ["expInf", "expTam", "expDev"]) if (document.activeElement !== $(k)) $(k).value = S.prefs[k] != null ? String(S.prefs[k]).replace(".", ",") : "";
-  $("chkVivo").checked = S.prefs.vivo; $("selCada").value = String(S.prefs.cada); $("selCada").disabled = !S.prefs.vivo;
+
 }
 
 // ---------- Eventos ----------
@@ -1457,8 +1456,19 @@ $("inFecha").addEventListener("change", e => { S.prefs.fecha = e.target.value ||
 $("selFuente").addEventListener("change", e => { S.prefs.fuente = e.target.value; S.prev = {}; guardar(); render(); });
 for (const k of ["expInf", "expTam", "expDev"]) $(k).addEventListener("input", e => { S.prefs[k] = parseNum(e.target.value); guardar(); render(); });
 $("chkCinta").addEventListener("change", e => { S.prefs.cinta = e.target.checked; guardar(); cinta2HTML = ""; if (S.prefs.cinta) cargarCinta(); pintarCinta(); pintarCinta2(); });
-$("chkVivo").addEventListener("change", e => { S.prefs.vivo = e.target.checked; guardar(); pintarControles(); programar(); });
-$("selCada").addEventListener("change", e => { S.prefs.cada = +e.target.value; guardar(); programar(); });
+// Modo negro: sigue al sistema hasta que lo elegís a mano
+const oscuroSistema = () => { try { return matchMedia("(prefers-color-scheme: dark)").matches; } catch { return false; } };
+function aplicarTema(){
+  const oscuro = S.prefs.tema ? S.prefs.tema === "dark" : oscuroSistema();
+  if (S.prefs.tema) document.documentElement.dataset.theme = S.prefs.tema; else delete document.documentElement.dataset.theme;
+  $("btnTema").setAttribute("aria-pressed", oscuro);
+  $("txtTema").textContent = oscuro ? "Modo claro" : "Modo negro";
+}
+$("btnTema").addEventListener("click", () => {
+  const oscuro = S.prefs.tema ? S.prefs.tema === "dark" : oscuroSistema();
+  S.prefs.tema = oscuro ? "light" : "dark"; guardar(); aplicarTema(); render();
+});
+aplicarTema();
 $("btnAct").addEventListener("click", () => { $("btnAct").textContent = "Actualizando…"; refrescar().finally(() => $("btnAct").textContent = "Actualizar"); });
 $("tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b){ mostrarTab(b.dataset.tab); try { history.replaceState(null, "", "#" + b.dataset.tab); } catch {} } });
 
@@ -1549,7 +1559,7 @@ let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTime
   pintarEditor(S.prefs.tab); render(); programar();
   setInterval(pintarEstado, 30000);
   cargarCinta();
-  setInterval(() => { if (S.prefs.vivo) cargarCinta(); }, 30000);   // la cinta se refresca cada 30 s
+  setInterval(cargarCinta, 30000);   // la cinta se refresca cada 30 s
 })();
 })();
 </script>
