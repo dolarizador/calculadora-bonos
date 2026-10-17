@@ -18,6 +18,7 @@
   --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
   --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --up-flash:rgba(22,163,74,.38); --down-flash:rgba(220,38,38,.36);
   --tape-bg:#0c1622; --tape-fg:#e6edf5; --tape-dim:#7f93ab; --tape-up:#3fd68a; --tape-down:#ff7262; --tape-line:#1e2d40;
   color-scheme:light;
 }
@@ -146,8 +147,11 @@ td.pcell{padding:3px 6px}
 .undo{border:0;background:none;cursor:pointer;color:var(--manual);font-size:.95rem;line-height:1;padding:2px 4px;border-radius:4px}
 .undo[hidden]{display:none}
 td.flash .pin{animation:flash 2.4s ease-out}
+td.flash.fu .pin{animation-name:flashU} td.flash.fd .pin{animation-name:flashD}
 @keyframes flash{0%,25%{background:var(--flash)}100%{background:transparent}}
-@media (prefers-reduced-motion:reduce){td.flash .pin{animation:none;background:var(--flash)}.dot.on{animation:none}}
+@keyframes flashU{0%,30%{background:var(--up-flash);color:var(--pos)}100%{background:transparent}}
+@keyframes flashD{0%,30%{background:var(--down-flash);color:var(--neg)}100%{background:transparent}}
+@media (prefers-reduced-motion:reduce){td.flash .pin{animation:none;background:var(--flash)}td.flash.fu .pin{background:var(--up-flash)}td.flash.fd .pin{background:var(--down-flash)}.dot.on{animation:none}}
 
 /* Editor de instrumentos */
 details.editor summary{cursor:pointer;font-weight:600;font-size:.9rem;color:var(--muted);list-style:none}
@@ -160,7 +164,7 @@ details.editor[open] summary{margin-bottom:12px}
 
 /* Cinta de cotizaciones */
 .cinta{position:relative;overflow:hidden;background:var(--tape-bg);color:var(--tape-fg);border:1px solid var(--tape-line);border-radius:8px;
-  font-family:var(--f-mono);font-size:.84rem;height:38px;display:flex;align-items:center;
+  font-family:var(--f-mono);font-size:.8rem;padding-block:6px;display:flex;align-items:center;
   -webkit-mask-image:linear-gradient(90deg,transparent,#000 40px,#000 calc(100% - 40px),transparent);mask-image:linear-gradient(90deg,transparent,#000 40px,#000 calc(100% - 40px),transparent)}
 .cintas{display:flex;flex-direction:column;gap:6px}
 .cintas:has(.cinta:not([hidden])) {margin-bottom:2px}
@@ -168,7 +172,11 @@ details.editor[open] summary{margin-bottom:12px}
 .ci .rt b{font-family:var(--f-mono);font-weight:600;color:var(--tape-fg);letter-spacing:0}
 .cinta-track{display:flex;width:max-content;animation:cinta var(--dur,60s) linear infinite}
 .cinta:hover .cinta-track{animation-play-state:paused}
-.ci{display:inline-flex;align-items:baseline;gap:7px;padding:0 18px;border-right:1px solid var(--tape-line);white-space:nowrap}
+.ci{display:inline-flex;flex-direction:column;gap:2px;padding:5px 12px;margin:0 4px;min-width:118px;border:1px solid var(--tape-line);border-radius:6px;
+  background:rgba(255,255,255,.035);white-space:nowrap;line-height:1.25}
+.ci .r1{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.ci .r2{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.ci .r3{font-size:.72rem}
 .ci b{font-family:var(--f-display);font-weight:700;letter-spacing:.02em}
 .ci .px{color:var(--tape-fg)}
 .ci .u{color:var(--tape-up)} .ci .d{color:var(--tape-down)} .ci .z{color:var(--tape-dim)}
@@ -176,13 +184,25 @@ details.editor[open] summary{margin-bottom:12px}
 @keyframes cinta{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){.cinta{overflow-x:auto}.cinta-track{animation:none}}
 
+/* Mapa de calor */
+.heat{position:relative;width:100%;height:420px;border-radius:8px;overflow:hidden;background:var(--surface-2);margin-bottom:14px}
+.hb{position:absolute;box-sizing:border-box;border:1px solid var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;
+  overflow:hidden;cursor:pointer;color:var(--ink);text-align:center;line-height:1.15;transition:filter .15s}
+.hb:hover{filter:brightness(1.15);z-index:1;outline:2px solid var(--ink);outline-offset:-2px}
+.hb b{font-family:var(--f-display);font-weight:800;letter-spacing:.01em}
+.hb span{font-family:var(--f-mono);font-weight:600;opacity:.92}
+.heatleg{display:flex;align-items:center;gap:8px;font-size:.76rem;color:var(--muted);margin:-6px 0 14px;flex-wrap:wrap}
+.heatleg i{display:inline-block;width:28px;height:10px;border-radius:2px}
+@media (max-width:560px){.heat{height:340px}}
+
 /* Renta variable */
 .rvbar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end;margin-bottom:12px}
 .rvbar input[type=search]{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:.88rem;width:200px;max-width:100%}
 .star{border:0;background:none;cursor:pointer;font-size:1rem;line-height:1;color:var(--line);padding:2px 4px}
 .star.on{color:#e0a00b}
 td.flashc{animation:flash 2.4s ease-out}
-@media (prefers-reduced-motion:reduce){td.flashc{animation:none;background:var(--flash)}}
+td.flashc.fu{animation-name:flashU} td.flashc.fd{animation-name:flashD}
+@media (prefers-reduced-motion:reduce){td.flashc{animation:none;background:var(--flash)}td.flashc.fu{background:var(--up-flash)}td.flashc.fd{background:var(--down-flash)}}
 @media (max-width:860px){
   .tape{grid-template-columns:repeat(2,minmax(0,1fr))}
   .tile+.tile{border-left:0}
@@ -457,6 +477,8 @@ td.flashc{animation:flash 2.4s ease-out}
         <label class="toggle"><input type="checkbox" id="fav-cedears"> Solo favoritos</label>
         <label class="toggle"><input type="checkbox" id="op-cedears"> Solo con operaciones</label>
       </div>
+      <div class="heat" id="heat-cedears" role="img" aria-label="Mapa de calor: tamaño por monto operado, color por variación"></div>
+      <div class="heatleg"><span>Tamaño = monto operado · Color = variación del día</span><i style="background:color-mix(in srgb,var(--neg) 90%,var(--surface-2))"></i>−3%<i style="background:var(--surface-2)"></i>0%<i style="background:color-mix(in srgb,var(--pos) 90%,var(--surface-2))"></i>+3%</div>
       <div class="tscroll"><table id="tblCe"><thead></thead><tbody></tbody></table></div>
       <p class="note" id="notaCe" style="margin-top:10px"></p>
     </div>
@@ -472,6 +494,8 @@ td.flashc{animation:flash 2.4s ease-out}
         <label class="toggle"><input type="checkbox" id="fav-acciones"> Solo favoritos</label>
         <label class="toggle"><input type="checkbox" id="op-acciones"> Solo con operaciones</label>
       </div>
+      <div class="heat" id="heat-acciones" role="img" aria-label="Mapa de calor: tamaño por monto operado, color por variación"></div>
+      <div class="heatleg"><span>Tamaño = monto operado · Color = variación del día</span><i style="background:color-mix(in srgb,var(--neg) 90%,var(--surface-2))"></i>−3%<i style="background:var(--surface-2)"></i>0%<i style="background:color-mix(in srgb,var(--pos) 90%,var(--surface-2))"></i>+3%</div>
       <div class="tscroll"><table id="tblAc"><thead></thead><tbody></tbody></table></div>
       <p class="note" id="notaAc" style="margin-top:10px"></p>
     </div>
@@ -573,7 +597,7 @@ const S = {
   cerSerie: new Map(), cerOk: null, cerManual: null,
   tamSerie: new Map(), tamOk: null, tamManual: null,
   tcSerie: new Map(), tcOk: null, tcManual: null, tcVivo: null, tcVivoT: 0,
-  rv: {cedears: null, acciones: null}, rvPrev: {cedears: {}, acciones: {}}, rvMov: {cedears: new Set(), acciones: new Set()}, rvErr: {},
+  rv: {cedears: null, acciones: null}, rvPrev: {cedears: {}, acciones: {}}, rvMov: {cedears: new Map(), acciones: new Map()}, rvErr: {},
   favs: new Set(store.get("cb-favs", [])),
   rvf: {cedears: {q:"", mon:"ARS", fav:false, op:false}, acciones: {q:"", mon:"ARS", fav:false, op:false}},
   estado: "cargando", hora: null,
@@ -927,10 +951,10 @@ async function cargarPrecios(){
   if (!ok.length){ S.estado = "error"; return; }
   const nuevos = {};
   ok.forEach(r => r.value.forEach(q => { if (q && q.symbol) nuevos[q.symbol] = q; }));
-  const f = S.prefs.fuente, todos = [...S.lecaps, ...S.cer, ...S.tamar, ...S.dl]; S.movidos = new Set();
+  const f = S.prefs.fuente, todos = [...S.lecaps, ...S.cer, ...S.tamar, ...S.dl]; S.movidos = new Set(); S.movDir = {};
   for (const i of todos){
     const a = S.prev[i.t], b = nuevos[i.t] ? nuevos[i.t][f] : undefined;
-    if (a != null && b != null && a !== b) S.movidos.add(i.t);
+    if (a != null && b != null && a !== b){ S.movidos.add(i.t); S.movDir[i.t] = b > a ? 1 : -1; }
   }
   if (S.movidos.size) S.ultMov = {hora: S.hora, t: [...S.movidos]};
   S.prev = Object.fromEntries(todos.map(i => [i.t, nuevos[i.t] ? nuevos[i.t][f] : undefined]));
@@ -940,8 +964,8 @@ async function cargarRV(tab){
   try {
     const arr = await getJSON(URL_RV[tab], 10000);
     if (!Array.isArray(arr)) throw new Error("formato");
-    const prev = S.rvPrev[tab], mov = new Set(), nuevo = {};
-    for (const q of arr){ if (!q?.symbol) continue; nuevo[q.symbol] = q.c; if (prev[q.symbol] != null && q.c != null && prev[q.symbol] !== q.c) mov.add(q.symbol); }
+    const prev = S.rvPrev[tab], mov = new Map(), nuevo = {};
+    for (const q of arr){ if (!q?.symbol) continue; nuevo[q.symbol] = q.c; if (prev[q.symbol] != null && q.c != null && prev[q.symbol] !== q.c) mov.set(q.symbol, q.c > prev[q.symbol] ? 1 : -1); }
     S.rv[tab] = arr; S.rvPrev[tab] = nuevo; S.rvMov[tab] = mov; S.rvErr[tab] = false;
   } catch { S.rvErr[tab] = true; }
 }
@@ -1118,8 +1142,8 @@ function celdaInner(c, f){
     default: return fmt(x, c.d ?? 2);
   }
 }
-function celdaPrecio(f, flash){
-  return `<td class="pcell${flash ? " flash" : ""}" data-k="p"><span class="pwrap">`
+function celdaPrecio(f, flash, dir){
+  return `<td class="pcell${flash ? " flash" + (dir > 0 ? " fu" : dir < 0 ? " fd" : "") : ""}" data-k="p"><span class="pwrap">`
     + `<input class="pin${f.manual ? " man" : ""}" type="text" inputmode="decimal" id="p-${esc(f.t)}" data-t="${esc(f.t)}" value="${aInput(f.p)}" placeholder="precio" aria-label="Precio ${esc(f.t)}" autocomplete="off">`
     + `<button type="button" class="undo" data-undo="${esc(f.t)}" title="Volver al precio en vivo${f.vivo ? " (" + fmt(f.vivo,3) + ")" : ""}" aria-label="Volver al precio en vivo" ${f.manual ? "" : "hidden"}>↺</button></span></td>`;
 }
@@ -1137,7 +1161,7 @@ function pintarTabla(tab, filas){
   }
   const fs = [...filas].sort((a,b) => { const x = a[k], y = b[k]; if (x == null) return 1; if (y == null) return -1; return (x > y ? 1 : x < y ? -1 : 0) * dir; });
   tbl.tHead.innerHTML = "<tr>" + cols.map(c => `<th class="sort${c.l ? " l" : ""}" data-k="${c.k}">${c.h}${c.k === k ? `<span class="arr">${dir > 0 ? "↑" : "↓"}</span>` : ""}</th>`).join("") + "</tr>";
-  tbl.tBodies[0].innerHTML = fs.length ? fs.map(f => `<tr data-t="${esc(f.t)}">` + cols.map(c => c.k === "p" ? celdaPrecio(f, S.movidos.has(f.t) && !f.manual)
+  tbl.tBodies[0].innerHTML = fs.length ? fs.map(f => `<tr data-t="${esc(f.t)}">` + cols.map(c => c.k === "p" ? celdaPrecio(f, S.movidos.has(f.t) && !f.manual, S.movDir?.[f.t])
       : `<td data-k="${c.k}" class="${c.l ? "l " : ""}${c.k === "t" ? "tk" : c.strong ? "strong" : ""}">${celdaInner(c, f)}</td>`).join("") + "</tr>").join("")
     : `<tr><td class="l" colspan="${cols.length}">No hay instrumentos vigentes. Agregalos en «Editar instrumentos».</td></tr>`;
 }
@@ -1206,7 +1230,7 @@ function celdaRV(c, f, mov){
   switch (c.k){
     case "fav": return `<td><button type="button" class="star${f.fav ? " on" : ""}" data-fav="${esc(f.t)}" aria-label="Favorito ${esc(f.t)}">★</button></td>`;
     case "t": return `<td class="l tk">${esc(f.t)}</td>`;
-    case "c": return `<td class="strong${mov ? " flashc" : ""}">${fmt(f.c, f.c != null && f.c < 10 ? 3 : 2)}</td>`;
+    case "c": return `<td class="strong${mov ? " flashc" + (mov > 0 ? " fu" : " fd") : ""}">${fmt(f.c, f.c != null && f.c < 10 ? 3 : 2)}</td>`;
     case "var": return `<td>${f.var == null ? "–" : `<span class="pill ${signo(f.var)}">${flecha(f.var)} ${fmt(Math.abs(f.var))}</span>`}</td>`;
     case "bid": case "ask": return `<td>${fmt(f[c.k], f[c.k] != null && f[c.k] < 10 ? 3 : 2)}</td>`;
     default: return `<td>${f[c.k] == null ? "–" : fmt(f[c.k], 0)}</td>`;
@@ -1217,12 +1241,53 @@ function pintarRV(tab){
   fs.sort((a,b) => { const x = a[k], y = b[k]; if (x == null) return 1; if (y == null) return -1; return (x > y ? 1 : x < y ? -1 : 0) * dir; });
   tbl.tHead.innerHTML = "<tr>" + COLS_RV.map(c => `<th class="sort${c.l ? " l" : ""}" data-k="${c.k}">${c.h}${c.k === k ? `<span class="arr">${dir > 0 ? "↑" : "↓"}</span>` : ""}</th>`).join("") + "</tr>";
   const mov = S.rvMov[tab];
-  tbl.tBodies[0].innerHTML = fs.length ? fs.map(f => "<tr>" + COLS_RV.map(c => celdaRV(c, f, mov.has(f.t))).join("") + "</tr>").join("")
+  pintarHeat(tab, fs);
+  tbl.tBodies[0].innerHTML = fs.length ? fs.map(f => "<tr>" + COLS_RV.map(c => celdaRV(c, f, mov.get(f.t) || 0)).join("") + "</tr>").join("")
     : `<tr><td class="l" colspan="${COLS_RV.length}">${S.rv[tab] == null ? (S.rvErr[tab] ? "No pude leer los precios de data912." : "Cargando…") : "Ningún ticker coincide con el filtro."}</td></tr>`;
   document.querySelectorAll(`[data-mon="${tab}"] button`).forEach(b => b.setAttribute("aria-pressed", b.dataset.v === S.rvf[tab].mon));
   const sube = fs.filter(f => f.var > 0).length, baja = fs.filter(f => f.var < 0).length;
-  $(tab === "cedears" ? "notaCe" : "notaAc").textContent = `${fs.length} tickers · ${sube} suben · ${baja} bajan · ${fs.length - sube - baja} sin cambio. Moneda ${({ARS:"pesos", MEP:"dólar MEP (especie D)", CCL:"dólar cable (especie C)"})[S.rvf[tab].mon]}. La celda de precio se ilumina cuando operó desde la consulta anterior.`;
+  $(tab === "cedears" ? "notaCe" : "notaAc").textContent = `${fs.length} tickers · ${sube} suben · ${baja} bajan · ${fs.length - sube - baja} sin cambio. Moneda ${({ARS:"pesos", MEP:"dólar MEP (especie D)", CCL:"dólar cable (especie C)"})[S.rvf[tab].mon]}. El precio se ilumina en verde si operó más arriba y en rojo si operó más abajo desde la consulta anterior.`;
   return fs;
+}
+
+// Treemap "squarified": rectángulos lo más cuadrados posible
+function treemap(items, W, H){
+  const total = items.reduce((a, i) => a + i.peso, 0); if (!total) return [];
+  const nodos = items.map(i => ({...i, a: i.peso / total * W * H})).sort((a, b) => b.a - a.a);
+  const out = []; let rect = {x:0, y:0, w:W, h:H}, fila = [];
+  const peor = (fila, lado) => { const s = fila.reduce((a, n) => a + n.a, 0), mx = Math.max(...fila.map(n => n.a)), mn = Math.min(...fila.map(n => n.a));
+    return Math.max(lado * lado * mx / (s * s), (s * s) / (lado * lado * mn)); };
+  const ubicar = fila => {
+    const s = fila.reduce((a, n) => a + n.a, 0);
+    if (rect.w >= rect.h){ const w = s / rect.h; let y = rect.y; fila.forEach(n => { const h = n.a / w; out.push({...n, x:rect.x, y, w, h}); y += h; }); rect = {x:rect.x + w, y:rect.y, w:rect.w - w, h:rect.h}; }
+    else { const h = s / rect.w; let x = rect.x; fila.forEach(n => { const w = n.a / h; out.push({...n, x, y:rect.y, w, h}); x += w; }); rect = {x:rect.x, y:rect.y + h, w:rect.w, h:rect.h - h}; }
+  };
+  let i = 0;
+  while (i < nodos.length){
+    const lado = Math.min(rect.w, rect.h), n = nodos[i];
+    if (!fila.length || peor([...fila, n], lado) <= peor(fila, lado)){ fila.push(n); i++; }
+    else { ubicar(fila); fila = []; }
+  }
+  if (fila.length) ubicar(fila);
+  return out;
+}
+function colorVar(v){
+  if (v == null || !isFinite(v) || Math.abs(v) < 0.005) return "var(--surface-2)";
+  const t = Math.min(1, Math.abs(v) / 3), pct = Math.round(28 + 62 * t);
+  return `color-mix(in srgb, var(${v > 0 ? "--pos" : "--neg"}) ${pct}%, var(--surface-2))`;
+}
+function pintarHeat(tab, fs){
+  const el = $("heat-" + tab), W = el.clientWidth, H = el.clientHeight;
+  if (!W || !H) return;
+  const cand = fs.filter(f => f.c > 0).map(f => ({...f, peso: (f.v || 0) * f.c})).sort((a, b) => b.peso - a.peso).slice(0, 60);
+  const conPeso = cand.filter(f => f.peso > 0);
+  const items = conPeso.length >= 3 ? conPeso : cand.map(f => ({...f, peso: 1}));   // sin volumen (mercado cerrado): todos iguales
+  if (!items.length){ el.innerHTML = `<div class="hb" style="inset:0;cursor:default"><span>Sin datos para el mapa</span></div>`; return; }
+  el.innerHTML = treemap(items, W, H).map(n => {
+    const area = n.w * n.h, fs_ = Math.max(9, Math.min(22, Math.sqrt(area) / 4.2));
+    const txt = n.w > 34 && n.h > 18 ? `<b style="font-size:${fs_}px">${esc(n.t)}</b>` + (n.h > 34 && n.w > 46 ? `<span style="font-size:${Math.max(9, fs_ * .72)}px">${n.var == null ? "–" : (n.var > 0 ? "+" : "") + fmt(n.var) + "%"}</span>` : "") : "";
+    return `<div class="hb" data-hq="${esc(n.t)}" title="${esc(n.t)} · ${fmt(n.c, 2)} · ${n.var == null ? "–" : fmt(n.var) + "%"}" style="left:${n.x.toFixed(1)}px;top:${n.y.toFixed(1)}px;width:${n.w.toFixed(1)}px;height:${n.h.toFixed(1)}px;background:${colorVar(n.var)}">${txt}</div>`;
+  }).join("");
 }
 
 // ---------- Render: breakevens ----------
@@ -1312,7 +1377,8 @@ function pintarCinta(){
      ...items.filter(i => i.tab === "cedears").sort((a,b) => b.v - a.v).slice(0, 15)];
   const uno = sel.map(i => {
     const cl = i.var > 0 ? "u" : i.var < 0 ? "d" : "z";
-    return `<span class="ci"><b>${esc(i.t)}</b><span class="tg">${i.tab === "cedears" ? "CEDEAR" : ""}</span><span class="px">${fmt(i.c, i.c < 10 ? 3 : 2)}</span><span class="${cl}">${flecha(i.var)} ${fmt(Math.abs(i.var))}%</span></span>`;
+    return `<span class="ci"><span class="r1"><b>${esc(i.t)}</b><span class="tg">${i.tab === "cedears" ? "CEDEAR" : "ACCIÓN"}</span></span>`
+      + `<span class="r2"><span class="px">${fmt(i.c, i.c < 10 ? 3 : 2)}</span><span class="${cl}">${flecha(i.var)} ${fmt(Math.abs(i.var))}%</span></span></span>`;
   }).join("");
   const html = uno + uno;                                          // duplicado para que el loop no tenga corte
   if (html !== cintaHTML){
@@ -1346,8 +1412,9 @@ function pintarCinta2(){
   cinta2Tasas = conTasa;
   const uno = sel.map(i => {
     const cl = i.var > 0 ? "u" : i.var < 0 ? "d" : "z";
-    const rt = i.tasa && isFinite(i.tasa[1]) ? `<span class="rt">${i.tasa[0]} <b>${fmt(i.tasa[1])}%</b></span>` : "";
-    return `<span class="ci"><b>${esc(i.t)}</b><span class="tg">${i.et}</span><span class="px">${fmt(i.p, 2)}</span><span class="${cl}">${flecha(i.var)} ${fmt(Math.abs(i.var))}%</span>${rt}</span>`;
+    const rt = i.tasa && isFinite(i.tasa[1]) ? `<span class="r3 rt">${i.tasa[0]} <b>${fmt(i.tasa[1])}%</b></span>` : `<span class="r3 rt">&nbsp;</span>`;
+    return `<span class="ci"><span class="r1"><b>${esc(i.t)}</b><span class="tg">${i.et}</span></span>`
+      + `<span class="r2"><span class="px">${fmt(i.p, 2)}</span><span class="${cl}">${flecha(i.var)} ${fmt(Math.abs(i.var))}%</span></span>${rt}</span>`;
   }).join("");
   const html = uno + uno;
   if (html !== cinta2HTML){
@@ -1365,6 +1432,7 @@ async function cargarCinta(){
 
 // ---------- Render: editores ----------
 function pintarEditor(tab){
+  if (!IDS[tab] || !Array.isArray(S[tab])) return;          // solapas sin editor (breakevens, CEDEARs, acciones)
   const lista = S[tab], cer = tab === "cer", tam = tab === "tamar";
   const dl = tab === "dl";
   const cab = dl ? `<th class="l">Ticker</th><th class="l">Emisión (opcional)</th><th class="l">Vencimiento</th><th>Tipo</th><th></th>` : tam ? `<th class="l">Ticker</th><th class="l">Emisión</th><th class="l">Vencimiento</th><th>Margen %</th><th>Tipo</th><th></th>` : cer ? `<th class="l">Ticker</th><th class="l">Emisión</th><th class="l">Vencimiento</th><th>CER base auto</th><th>CER base manual</th><th></th>`
@@ -1539,6 +1607,8 @@ for (const tab of ["cedears", "acciones"]){
     if (st){ const t = st.dataset.fav; S.favs.has(t) ? S.favs.delete(t) : S.favs.add(t); store.set("cb-favs", [...S.favs]); render(); }
   });
   $(`q-${tab}`).addEventListener("input", e => { S.rvf[tab].q = e.target.value; render(); });
+  $("heat-" + tab).addEventListener("click", e => { const b = e.target.closest("[data-hq]"); if (!b) return;
+    const q = $(`q-${tab}`); q.value = q.value === b.dataset.hq ? "" : b.dataset.hq; S.rvf[tab].q = q.value; render(); });
   $(`fav-${tab}`).addEventListener("change", e => { S.rvf[tab].fav = e.target.checked; render(); });
   $(`op-${tab}`).addEventListener("change", e => { S.rvf[tab].op = e.target.checked; render(); });
   document.querySelector(`[data-mon="${tab}"]`).addEventListener("click", e => { const b = e.target.closest("button"); if (b){ S.rvf[tab].mon = b.dataset.v; render(); } });
