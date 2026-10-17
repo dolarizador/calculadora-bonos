@@ -18,6 +18,7 @@
   --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
   --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --tape-bg:#0c1622; --tape-fg:#e6edf5; --tape-dim:#7f93ab; --tape-up:#3fd68a; --tape-down:#ff7262; --tape-line:#1e2d40;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -86,8 +87,8 @@ select,input[type=date],input[type=number],input[type=text]{background:var(--sur
 .up{color:var(--pos)} .down{color:var(--neg)}
 
 /* Solapas */
-.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
-.tabs button{border:0;background:none;padding:10px 16px;cursor:pointer;font-family:var(--f-display);font-weight:700;font-size:1.02rem;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tabs button{white-space:nowrap;border:0;background:none;padding:10px 16px;cursor:pointer;font-family:var(--f-display);font-weight:700;font-size:1.02rem;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px}
 .tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
 .panel{display:flex;flex-direction:column;gap:16px;min-width:0}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
@@ -127,7 +128,7 @@ td.dim{color:var(--muted)}
 .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-weight:600}
 .pill.up{background:var(--pos-bg)} .pill.down{background:var(--neg-bg)} .pill.flat{color:var(--muted)}
 .tag{font-family:var(--f-body);font-size:.72rem;font-weight:600;letter-spacing:.06em;padding:2px 7px;border-radius:4px;border:1px solid currentColor}
-.tag.lecap,.tag.boncer{color:var(--accent)} .tag.boncap,.tag.dual{color:var(--boncap)} .tag.lecer{color:var(--pos)} .tag.cupon{color:var(--manual)}
+.tag.lecap,.tag.boncer,.tag.lelink{color:var(--accent)} .tag.bonte{color:var(--boncap)} .tag.boncap,.tag.dual{color:var(--boncap)} .tag.lecer,.tag.tamar{color:var(--pos)} .tag.cupon{color:var(--manual)}
 
 /* Precio editable */
 td.pcell{padding:3px 6px}
@@ -152,6 +153,31 @@ details.editor[open] summary{margin-bottom:12px}
 .ed input{width:100%;min-width:96px}
 .ed td{padding:5px 6px}
 
+/* Cinta de cotizaciones */
+.cinta{position:relative;overflow:hidden;background:var(--tape-bg);color:var(--tape-fg);border:1px solid var(--tape-line);border-radius:8px;
+  font-family:var(--f-mono);font-size:.84rem;height:38px;display:flex;align-items:center;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 40px,#000 calc(100% - 40px),transparent);mask-image:linear-gradient(90deg,transparent,#000 40px,#000 calc(100% - 40px),transparent)}
+.cintas{display:flex;flex-direction:column;gap:6px}
+.cintas:has(.cinta:not([hidden])) {margin-bottom:2px}
+.ci .rt{color:var(--tape-dim)}
+.ci .rt b{font-family:var(--f-mono);font-weight:600;color:var(--tape-fg);letter-spacing:0}
+.cinta-track{display:flex;width:max-content;animation:cinta var(--dur,60s) linear infinite}
+.cinta:hover .cinta-track{animation-play-state:paused}
+.ci{display:inline-flex;align-items:baseline;gap:7px;padding:0 18px;border-right:1px solid var(--tape-line);white-space:nowrap}
+.ci b{font-family:var(--f-display);font-weight:700;letter-spacing:.02em}
+.ci .px{color:var(--tape-fg)}
+.ci .u{color:var(--tape-up)} .ci .d{color:var(--tape-down)} .ci .z{color:var(--tape-dim)}
+.ci .tg{font-size:.65rem;color:var(--tape-dim);letter-spacing:.08em}
+@keyframes cinta{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.cinta{overflow-x:auto}.cinta-track{animation:none}}
+
+/* Renta variable */
+.rvbar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end;margin-bottom:12px}
+.rvbar input[type=search]{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:.88rem;width:200px;max-width:100%}
+.star{border:0;background:none;cursor:pointer;font-size:1rem;line-height:1;color:var(--line);padding:2px 4px}
+.star.on{color:#e0a00b}
+td.flashc{animation:flash 2.4s ease-out}
+@media (prefers-reduced-motion:reduce){td.flashc{animation:none;background:var(--flash)}}
 @media (max-width:860px){
   .tape{grid-template-columns:repeat(2,minmax(0,1fr))}
   .tile+.tile{border-left:0}
@@ -165,6 +191,11 @@ details.editor[open] summary{margin-bottom:12px}
 </head>
 <body>
 <div class="wrap">
+
+  <div class="cintas">
+    <div class="cinta" id="cinta" aria-label="Cotizaciones de acciones y CEDEARs" hidden><div class="cinta-track" id="cintaTrack"></div></div>
+    <div class="cinta" id="cinta2" aria-label="Cotizaciones de bonos" hidden><div class="cinta-track" id="cintaTrack2"></div></div>
+  </div>
 
   <header class="top">
     <h1>Calculadora de Bonos <svg class="flag" viewBox="0 0 30 20" role="img" aria-label="Bandera argentina"><rect width="30" height="20" fill="#74ACDF"/><rect y="6.67" width="30" height="6.67" fill="#fff"/><circle cx="15" cy="10" r="2.1" fill="#F6B40E" stroke="#85340A" stroke-width=".35"/></svg></h1>
@@ -201,6 +232,7 @@ details.editor[open] summary{margin-bottom:12px}
       <span>Actualización</span>
       <div class="row">
         <label class="toggle"><input type="checkbox" id="chkVivo" checked> En vivo</label>
+        <label class="toggle"><input type="checkbox" id="chkCinta" checked> Cinta</label>
         <select id="selCada" aria-label="Cada cuánto consultar">
           <option value="3">3 s</option><option value="5">5 s</option><option value="10">10 s</option>
           <option value="30">30 s</option><option value="60">60 s</option>
@@ -217,6 +249,11 @@ details.editor[open] summary{margin-bottom:12px}
   <nav class="tabs" role="tablist" id="tabs">
     <button role="tab" data-tab="lecaps" aria-selected="true">Lecaps</button>
     <button role="tab" data-tab="cer" aria-selected="false">CER</button>
+    <button role="tab" data-tab="tamar" aria-selected="false">TAMAR</button>
+    <button role="tab" data-tab="dl" aria-selected="false">Dólar linked</button>
+    <button role="tab" data-tab="be" aria-selected="false">Breakevens</button>
+    <button role="tab" data-tab="cedears" aria-selected="false">CEDEARs</button>
+    <button role="tab" data-tab="acciones" aria-selected="false">Acciones</button>
   </nav>
 
   <!-- LECAPS -->
@@ -291,7 +328,156 @@ details.editor[open] summary{margin-bottom:12px}
     </div>
   </section>
 
-  <p class="note">Precios: data912 · CER: BCRA · Feriados: ArgentinaDatos · Tasas en base actual/365 · Horario Argentina. Herramienta de cálculo; no es recomendación de inversión.</p>
+  <!-- TAMAR -->
+  <section class="panel" data-panel="tamar" hidden>
+    <div class="card">
+      <h2>TAMAR proyectada</h2>
+      <p class="hint">La tira pasada sale del BCRA (TAMAR bancos privados). Los días que faltan se completan con la última TAMAR conocida, o con la que escribas acá.</p>
+      <div class="cerbox">
+        <div class="ctl"><span>Última conocida</span><div class="big" id="tamFecha">—</div></div>
+        <div class="ctl"><span>Valor BCRA</span><div class="big" id="tamValor">—</div></div>
+        <label class="ctl"><span>TAMAR a proyectar (opcional)</span><input type="text" inputmode="decimal" id="tamManual" placeholder="pisa la última" style="width:150px"></label>
+        <span class="note" id="tamEstado"></span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Curva TAMAR</h2>
+      <p class="hint">TIR contra duration modificada, con la TAMAR proyectada.</p>
+      <div class="chart" id="chartT"><svg id="svgT" role="img" aria-label="Curva TAMAR"></svg><div class="tip" id="tipT" hidden></div></div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>TAMAR</span><span><i style="background:var(--boncap)"></i>Dual (pata TAMAR)</span><span><i class="line"></i>Curva ajustada</span></div>
+    </div>
+    <div class="card">
+      <div class="cardhead">
+        <div><h2>Bonos y letras TAMAR</h2>
+        <p class="hint">Escribí un precio en la columna Precio y las tasas se recalculan al instante. ↺ vuelve al precio en vivo.</p></div>
+        <button type="button" class="btn sm" data-clear="tamar">Volver todo a precios en vivo</button>
+      </div>
+      <div class="tscroll"><table id="tblT"><thead></thead><tbody></tbody></table></div>
+      <p class="note" id="notaT" style="margin-top:10px"></p>
+    </div>
+    <div class="card">
+      <details class="editor" id="edT">
+        <summary>Editar instrumentos</summary>
+        <p class="hint">El promedio de TAMAR va desde 10 hábiles antes de la emisión hasta 10 hábiles antes del vencimiento. Se guarda en este navegador.</p>
+        <div class="tscroll"><table class="ed" id="tblEdT"></table></div>
+        <div class="row" style="margin-top:12px">
+          <button type="button" class="btn primary" data-add="tamar">Agregar</button>
+          <button type="button" class="btn danger" data-reset="tamar">Restaurar originales</button>
+          <span class="note" id="msgT"></span>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- BREAKEVENS -->
+  <section class="panel" data-panel="be" hidden>
+    <div class="card">
+      <h2>Tu escenario</h2>
+      <p class="hint">Escribí lo que esperás y cada tabla te dice si conviene la tasa fija o el instrumento indexado, plazo por plazo. Si lo dejás vacío, solo ves lo que descuenta el mercado.</p>
+      <div class="cerbox">
+        <label class="ctl"><span>Inflación mensual esperada %</span><input type="text" inputmode="decimal" id="expInf" placeholder="ej. 2,0" style="width:150px"></label>
+        <label class="ctl"><span>TAMAR esperada (TNA %)</span><input type="text" inputmode="decimal" id="expTam" placeholder="ej. 24" style="width:150px"></label>
+        <label class="ctl"><span>Devaluación mensual esperada %</span><input type="text" inputmode="decimal" id="expDev" placeholder="ej. 1,5" style="width:150px"></label>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Qué descuenta el mercado</h2>
+      <p class="hint">Todo en % mensual por plazo. La línea es la TEM de la curva de tasa fija; los puntos, la inflación, la TAMAR y la devaluación que empatan con ella al mismo vencimiento.</p>
+      <div class="chart" id="chartB"><svg id="svgB" role="img" aria-label="Breakevens por plazo"></svg><div class="tip" id="tipB" hidden></div></div>
+      <div class="legend"><span><i class="line" style="border-top-style:solid;border-color:var(--ink)"></i>Tasa fija (TEM)</span><span><i style="background:var(--pos)"></i>Inflación breakeven</span><span><i style="background:var(--accent)"></i>TAMAR implícita (TEM)</span><span><i style="background:var(--boncap)"></i>Devaluación implícita</span><span id="legEsc"></span></div>
+    </div>
+    <div class="card">
+      <h2>Inflación breakeven</h2>
+      <p class="hint">La inflación que iguala un bono CER con la tasa fija al mismo plazo: (1 + TEA fija) / (1 + TIR real) − 1. Si esperás más inflación que esta, conviene CER.</p>
+      <div class="tscroll"><table id="tblBI"><thead></thead><tbody></tbody></table></div>
+    </div>
+    <div class="card">
+      <h2>TAMAR implícita</h2>
+      <p class="hint">La TAMAR (constante desde hoy) que hace que el bono TAMAR rinda lo mismo que la tasa fija al mismo plazo, con la tira pasada real del BCRA. Si esperás una TAMAR más alta, conviene TAMAR.</p>
+      <div class="tscroll"><table id="tblBT"><thead></thead><tbody></tbody></table></div>
+    </div>
+    <div class="card">
+      <h2>Devaluación implícita</h2>
+      <p class="hint">Cuánto tiene que subir el dólar para que el dollar linked empate con la tasa fija. Si esperás más devaluación, conviene dollar linked.</p>
+      <div class="tscroll"><table id="tblBD"><thead></thead><tbody></tbody></table></div>
+      <p class="note" id="notaB" style="margin-top:10px"></p>
+    </div>
+  </section>
+
+  <!-- DÓLAR LINKED -->
+  <section class="panel" data-panel="dl" hidden>
+    <div class="card">
+      <h2>Tipo de cambio</h2>
+      <p class="hint">Convierte el precio en pesos a dólares. Por defecto usa el último mayorista operado (se actualiza durante la rueda); podés elegir el A3500 del BCRA o escribirlo a mano. En los plazos cortos, cada peso de diferencia mueve mucho la tasa.</p>
+      <div class="cerbox">
+        <div class="ctl"><span>Usar</span>
+          <div class="seg" id="segTc"><button type="button" data-v="vivo">Último operado</button><button type="button" data-v="a3500">A3500</button></div></div>
+        <div class="ctl"><span>Mayorista último operado</span><div class="big" id="tcVivo">—</div><span class="note" id="tcVivoHora"></span></div>
+        <div class="ctl"><span>A3500 BCRA</span><div class="big" id="tcValor">—</div><span class="note" id="tcFecha"></span></div>
+        <label class="ctl"><span>TC manual (opcional)</span><input type="text" inputmode="decimal" id="tcManual" placeholder="pisa al BCRA" style="width:150px"></label>
+        <span class="note" id="tcEstado"></span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Curva dólar linked</h2>
+      <p class="hint">TIR en dólares contra duration modificada, con ajuste logarítmico.</p>
+      <div class="chart" id="chartD"><svg id="svgD" role="img" aria-label="Curva dólar linked"></svg><div class="tip" id="tipD" hidden></div></div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>Letras (LELINK)</span><span><i style="background:var(--boncap)"></i>Bonos (BONTE DL)</span><span><i class="line"></i>Curva ajustada</span></div>
+    </div>
+    <div class="card">
+      <div class="cardhead">
+        <div><h2>Dólar linked</h2>
+        <p class="hint">Escribí un precio en pesos en la columna Precio y las tasas se recalculan al instante. ↺ vuelve al precio en vivo.</p></div>
+        <button type="button" class="btn sm" data-clear="dl">Volver todo a precios en vivo</button>
+      </div>
+      <div class="tscroll"><table id="tblD"><thead></thead><tbody></tbody></table></div>
+      <p class="note" id="notaD" style="margin-top:10px"></p>
+    </div>
+    <div class="card">
+      <details class="editor" id="edD">
+        <summary>Editar instrumentos</summary>
+        <p class="hint">Pagan 100 dólares por cada 100 de VN al vencimiento (en pesos al A3500 de ese momento), así que alcanza con el vencimiento. La emisión es opcional. Se guarda en este navegador.</p>
+        <div class="tscroll"><table class="ed" id="tblEdD"></table></div>
+        <div class="row" style="margin-top:12px">
+          <button type="button" class="btn primary" data-add="dl">Agregar</button>
+          <button type="button" class="btn danger" data-reset="dl">Restaurar originales</button>
+          <span class="note" id="msgD"></span>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <section class="panel" data-panel="cedears" hidden>
+    <div class="card">
+      <h2>CEDEARs</h2>
+      <p class="hint">Precios en vivo de data912. Tocá un encabezado para ordenar y la ★ para marcar favoritos.</p>
+      <div class="rvbar">
+        <label class="ctl"><span>Buscar</span><input type="search" id="q-cedears" placeholder="Ticker" autocomplete="off"></label>
+        <div class="ctl"><span>Moneda</span><div class="seg" data-mon="cedears"><button type="button" data-v="ARS">Pesos</button><button type="button" data-v="MEP">MEP (D)</button><button type="button" data-v="CCL">Cable (C)</button></div></div>
+        <label class="toggle"><input type="checkbox" id="fav-cedears"> Solo favoritos</label>
+        <label class="toggle"><input type="checkbox" id="op-cedears"> Solo con operaciones</label>
+      </div>
+      <div class="tscroll"><table id="tblCe"><thead></thead><tbody></tbody></table></div>
+      <p class="note" id="notaCe" style="margin-top:10px"></p>
+    </div>
+  </section>
+
+  <section class="panel" data-panel="acciones" hidden>
+    <div class="card">
+      <h2>Acciones argentinas</h2>
+      <p class="hint">Precios en vivo de data912. Tocá un encabezado para ordenar y la ★ para marcar favoritos.</p>
+      <div class="rvbar">
+        <label class="ctl"><span>Buscar</span><input type="search" id="q-acciones" placeholder="Ticker" autocomplete="off"></label>
+        <div class="ctl"><span>Moneda</span><div class="seg" data-mon="acciones"><button type="button" data-v="ARS">Pesos</button><button type="button" data-v="MEP">MEP (D)</button><button type="button" data-v="CCL">Cable (C)</button></div></div>
+        <label class="toggle"><input type="checkbox" id="fav-acciones"> Solo favoritos</label>
+        <label class="toggle"><input type="checkbox" id="op-acciones"> Solo con operaciones</label>
+      </div>
+      <div class="tscroll"><table id="tblAc"><thead></thead><tbody></tbody></table></div>
+      <p class="note" id="notaAc" style="margin-top:10px"></p>
+    </div>
+  </section>
+
+  <p class="note">Precios: data912 · CER, TAMAR y A3500: BCRA · Mayorista en vivo: DolarApi · Feriados: ArgentinaDatos · Tasas en base actual/365 · Horario Argentina. Herramienta de cálculo; no es recomendación de inversión.</p>
 </div>
 
 <script>
@@ -299,8 +485,10 @@ details.editor[open] summary{margin-bottom:12px}
 "use strict";
 const TZ = "America/Argentina/Buenos_Aires";
 const URLS_PRECIOS = ["https://data912.com/live/arg_notes", "https://data912.com/live/arg_bonds"];
+const URL_RV = {cedears: "https://data912.com/live/arg_cedears", acciones: "https://data912.com/live/arg_stocks"};
+const URL_TC_VIVO = "https://dolarapi.com/v1/dolares/mayorista";
 const URL_FERIADOS = y => `https://api.argentinadatos.com/v1/feriados/${y}`;
-const URL_CER = (desde, hasta, off) => `https://api.bcra.gob.ar/estadisticas/v4.0/monetarias/30?desde=${desde}&hasta=${hasta}&offset=${off}`;
+const URL_BCRA = (id, desde, hasta, off) => `https://api.bcra.gob.ar/estadisticas/v4.0/monetarias/${id}?desde=${desde}&hasta=${hasta}&offset=${off}`;
 
 const LECAP_DEFAULT = [
   {t:"S30O6", e:"2025-10-31", v:"2026-10-30", tem:2.55},
@@ -338,6 +526,31 @@ const CER_DEFAULT = [
 const CUPONES = {
   TX28: {tasa: 2.25, desdeCupon: "2021-05-09", desdeAmort: "2024-05-09", cuotas: 10, meses: [5, 11], dia: 9},
 };
+// TAMAR: mg = margen de emisión en puntos porcentuales
+const TAMAR_DEFAULT = [
+  {t:"TMF27", e:"2026-02-13", v:"2027-02-26", mg:6.5},
+  {t:"TML27", e:"2026-06-30", v:"2027-07-30", mg:5.4},
+  {t:"TMG27", e:"2026-04-01", v:"2027-08-31", mg:6},
+  {t:"TMVE8", e:"2026-07-30", v:"2028-01-31", mg:0},
+  {t:"TMF28", e:"2026-04-20", v:"2028-02-25", mg:6.5},
+  {t:"TXMJ8", e:"2026-05-15", v:"2028-06-30", mg:3},
+  {t:"TMG28", e:"2026-04-30", v:"2028-08-31", mg:6.9},
+  {t:"TXMD8", e:"2026-06-12", v:"2028-12-15", mg:3},
+  {t:"TXMJ9", e:"2026-04-30", v:"2029-06-29", mg:3},
+  {t:"TXMD9", e:"2026-06-12", v:"2029-12-14", mg:3},
+  {t:"TXMJ0", e:"2026-06-12", v:"2030-06-28", mg:3},
+];
+// Dólar linked: pagan 100 USD por 100 VN al vencimiento (en pesos al A3500)
+const DL_DEFAULT = [
+  {t:"D15E7", e:"", v:"2027-01-15"},
+  {t:"D31M7", e:"", v:"2027-03-31"},
+  {t:"D10Y7", e:"", v:"2027-05-10"},
+  {t:"TZV27", e:"", v:"2027-06-30"},
+  {t:"TZV28", e:"", v:"2028-06-30"},
+  {t:"TZVD8", e:"", v:"2028-12-15"},
+];
+const tipoDl = t => t.startsWith("D") ? "LELINK" : "BONTE";
+const tipoTamar = t => t.startsWith("TXM") ? "DUAL CER" : t.startsWith("TMV") ? "DUAL USD" : "TAMAR";
 const tipoCer = t => CUPONES[t] ? "CUPÓN" : t.startsWith("TXM") ? "DUAL" : t.startsWith("X") ? "LECER" : "BONCER";
 const FERIADOS_RESPALDO = ["2026-01-01","2026-02-16","2026-02-17","2026-03-23","2026-03-24","2026-04-02","2026-04-03",
   "2026-05-01","2026-05-25","2026-06-15","2026-06-20","2026-07-09","2026-07-10","2026-08-17","2026-10-12",
@@ -351,16 +564,23 @@ const store = {
 const S = {
   lecaps: store.get("cb-lecaps", null) || LECAP_DEFAULT.map(x => ({...x})),
   cer: store.get("cb-cer-v4", null) || CER_DEFAULT.map(x => ({...x})),
-  prefs: Object.assign({modo:"T+1", fecha:null, fuente:"c", vivo:true, cada:5, tab:"lecaps"}, store.get("cb-prefs", {})),
+  tamar: store.get("cb-tamar-v1", null) || TAMAR_DEFAULT.map(x => ({...x})),
+  dl: store.get("cb-dl-v1", null) || DL_DEFAULT.map(x => ({...x})),
+  prefs: Object.assign({modo:"T+1", fecha:null, fuente:"c", vivo:true, cada:5, tab:"lecaps", tcFuente:"vivo", cinta:true, expInf:null, expTam:null, expDev:null}, store.get("cb-prefs", {})),
   manual: {},            // precios escritos a mano: {ticker: precio}
   precios: {}, prev: {}, movidos: new Set(), ultMov: null,
   feriados: new Set(FERIADOS_RESPALDO),
   cerSerie: new Map(), cerOk: null, cerManual: null,
+  tamSerie: new Map(), tamOk: null, tamManual: null,
+  tcSerie: new Map(), tcOk: null, tcManual: null, tcVivo: null, tcVivoT: 0,
+  rv: {cedears: null, acciones: null}, rvPrev: {cedears: {}, acciones: {}}, rvMov: {cedears: new Set(), acciones: new Set()}, rvErr: {},
+  favs: new Set(store.get("cb-favs", [])),
+  rvf: {cedears: {q:"", mon:"ARS", fav:false, op:false}, acciones: {q:"", mon:"ARS", fav:false, op:false}},
   estado: "cargando", hora: null,
-  sort: {lecaps:{k:"dias", dir:1}, cer:{k:"dias", dir:1}},
+  sort: {lecaps:{k:"dias", dir:1}, cer:{k:"dias", dir:1}, tamar:{k:"dias", dir:1}, dl:{k:"dias", dir:1}, cedears:{k:"t", dir:1}, acciones:{k:"t", dir:1}},
   timer: null, datos: {},
 };
-const guardar = () => { store.set("cb-prefs", S.prefs); store.set("cb-lecaps", S.lecaps); store.set("cb-cer-v4", S.cer); };
+const guardar = () => { store.set("cb-prefs", S.prefs); store.set("cb-lecaps", S.lecaps); store.set("cb-cer-v4", S.cer); store.set("cb-tamar-v1", S.tamar); store.set("cb-dl-v1", S.dl); };
 
 // ---------- Fechas ----------
 const hoyAR = () => new Date().toLocaleDateString("en-CA", {timeZone: TZ});
@@ -507,6 +727,151 @@ function calcCer(liq){
   return {filas, fit: ponerVsCurva(filas, "tir"), fechaAplic, auto, cerHoy};
 }
 
+function ultimaTamar(){
+  let f = null; for (const k of S.tamSerie.keys()) if (!f || k > f) f = k;
+  return f ? {fecha: f, v: S.tamSerie.get(f)} : null;
+}
+const temTamar = tna => Math.pow(Math.pow(1 + tna / 100 * 32 / 365, 365 / 32), 1 / 12) - 1;   // TNA % → TEM
+// Tira de TAMAR de un instrumento: días hábiles conocidos (n1, suma s1) y a proyectar (n2)
+function tiraTamar(i){
+  const ult = ultimaTamar(), ini = dn(habilAtras(i.e, 10)), fin = dn(habilAtras(i.v, 10));
+  let n1 = 0, s1 = 0, n2 = 0;
+  for (let d = ini; d <= fin; d++){
+    if (!esHabil(d)) continue;
+    const k = iso(d), val = S.tamSerie.get(k);
+    if (val != null){ n1++; s1 += val; } else if (!ult || k > ult.fecha) n2++;
+  }
+  return {n1, s1, n2};
+}
+function calcTamar(liq){
+  const ult = ultimaTamar();
+  const proy = S.tamManual > 0 ? S.tamManual : ult ? ult.v : null;
+  const filas = [];
+  for (const i of S.tamar){
+    if (!i.t || !i.v || !i.e) continue;
+    const dias = dn(i.v) - dn(liq); if (dias <= 0) continue;
+    const {p, manual} = precioDe(i.t), q = S.precios[i.t], mg = +i.mg || 0;
+    const f = {t:i.t, tipo: tipoTamar(i.t), p, manual, vivo: vivoDe(i.t), var: q ? q.pct_change : null, dias, v:i.v, mg};
+    if (proy != null){
+      // tira: días hábiles entre emisión−10h y vencimiento−10h; conocidos del BCRA, el resto proyectado
+      const ini = dn(habilAtras(i.e, 10)), fin = dn(habilAtras(i.v, 10));
+      let n1 = 0, s1 = 0, n2 = 0;
+      for (let d = ini; d <= fin; d++){
+        if (!esHabil(d)) continue;
+        const k = iso(d), val = S.tamSerie.get(k);
+        if (val != null){ n1++; s1 += val; } else if (!ult || k > ult.fecha) n2++;
+      }
+      if (n1 + n2 > 0){
+        f.prom = (s1 + n2 * proy) / (n1 + n2); f.conocido = n1 / (n1 + n2) * 100;
+        f.vf = 100 * Math.pow(1 + temTamar(f.prom + mg), dias30360(i.e, i.v) / 30);
+      }
+    }
+    if (p && f.vf){
+      const m = tasas(f.vf / p, dias);
+      Object.assign(f, {tir:m.tea*100, tna:(Math.pow(1+m.tea, .5)-1)*200, tem:m.tem*100, dm:m.dm});
+      // margen implícito: spread sobre la TAMAR proyectada que paga el bono desde la liquidación
+      const meses = dias30360(liq, i.v) / 30;
+      if (meses > 0){
+        const anual = Math.pow(Math.pow(f.vf / p, 1 / meses), 12);
+        f.mimp = (Math.pow(anual, 32 / 365) - 1) * 365 / 32 * 100 - proy;
+      }
+    }
+    filas.push(f);
+  }
+  filas.sort((a,b) => a.dias - b.dias);
+  return {filas, fit: ponerVsCurva(filas, "tir"), ult, proy};
+}
+
+function ultimoDe(serie, hasta){
+  let f = null; for (const k of serie.keys()) if ((!hasta || k <= hasta) && (!f || k > f)) f = k;
+  return f ? {fecha: f, v: serie.get(f)} : null;
+}
+// Curva de tasa fija al plazo: interpola la TEA de Lecaps/Boncaps; marca si hay un bono con el mismo vencimiento
+function fijaA(dias, venc){
+  const fs = (S.datos.lecaps?.filas || []).filter(f => razonable(f, "tna")).sort((a,b) => a.dias - b.dias);
+  if (!fs.length) return null;
+  const par = fs.find(f => f.v === venc);
+  if (par) return {tea: par.tea / 100, par: par.t};
+  const max = fs[fs.length - 1].dias;
+  if (dias > max * 1.25 + 15) return {fuera: true};             // muy lejos de la curva: no extrapolo
+  const tea = teaLecapA(dias);
+  return tea == null ? null : {tea, extrap: dias > max || dias < fs[0].dias};
+}
+function calcBE(liq){
+  const d = S.datos, inf = [], tam = [], dev = [];
+  const temDe = tea => (Math.pow(1 + tea, 1/12) - 1) * 100;
+  for (const f of d.cer?.filas || []){
+    if (f.tipo === "CUPÓN" || !razonable(f, "tir")) continue;
+    const fx = fijaA(f.dias, f.v); if (!fx) continue;
+    const r = {t:f.t, tipo:f.tipo, v:f.v, dias:f.dias, tir:f.tir, fx};
+    if (!fx.fuera){ r.fija = fx.tea * 100; r.anual = ((1 + fx.tea) / (1 + f.tir/100) - 1) * 100; r.mens = (Math.pow((1 + fx.tea) / (1 + f.tir/100), 1/12) - 1) * 100; }
+    inf.push(r);
+  }
+  for (const f of d.tamar?.filas || []){
+    if (!(f.p > 0) || !f.vf) continue;
+    const fx = fijaA(f.dias, f.v); if (!fx) continue;
+    const i = S.tamar.find(x => x.t === f.t); if (!i) continue;
+    const r = {t:f.t, tipo:f.tipo, v:f.v, dias:f.dias, tir:f.tir, fx, actual: d.tamar.proy};
+    if (!fx.fuera){
+      r.fija = fx.tea * 100;
+      // VF que hace falta para rendir la tasa fija → promedio de TAMAR → TAMAR constante a proyectar
+      const vfObj = f.p * Math.pow(1 + fx.tea, f.dias / 365), meses = dias30360(i.e, i.v) / 30;
+      const tem = Math.pow(vfObj / 100, 1 / meses) - 1, anual = Math.pow(1 + tem, 12);
+      const promObj = (Math.pow(anual, 32/365) - 1) * 365/32 * 100 - (+i.mg || 0);
+      const {n1, s1, n2} = tiraTamar(i);
+      if (n2 > 0){ r.be = (promObj * (n1 + n2) - s1) / n2; r.beTem = temTamar(r.be) * 100; r.vsAct = r.actual != null ? (r.be - r.actual) * 100 : null; }
+    }
+    tam.push(r);
+  }
+  for (const f of d.dl?.filas || []){
+    if (!razonable(f, "tir") || !d.dl.tc) continue;
+    const fx = fijaA(f.dias, f.v); if (!fx) continue;
+    const r = {t:f.t, tipo:f.tipo, v:f.v, dias:f.dias, tir:f.tir, fx};
+    if (!fx.fuera){
+      r.fija = fx.tea * 100;
+      const tcbe = (f.p / 100) * Math.pow(1 + fx.tea, f.dias / 365);
+      r.tcbe = tcbe; r.total = (tcbe / d.dl.tc - 1) * 100; r.mens = (Math.pow(tcbe / d.dl.tc, 30 / f.dias) - 1) * 100;
+    }
+    dev.push(r);
+  }
+  const curva = (d.lecaps?.filas || []).filter(f => razonable(f, "tna")).map(f => ({dias: f.dias, tem: f.tem, t: f.t})).sort((a,b) => a.dias - b.dias);
+  return {inf, tam, dev, curva, temDe};
+}
+function teaLecapA(dias){                     // TEA de la curva Lecap interpolada al plazo
+  const pts = (S.datos.lecaps?.filas || []).filter(f => razonable(f, "tna")).map(f => [f.dias, f.tea / 100]).sort((a,b) => a[0]-b[0]);
+  if (!pts.length) return null;
+  if (dias <= pts[0][0]) return pts[0][1];
+  if (dias >= pts[pts.length-1][0]) return pts[pts.length-1][1];
+  for (let i = 1; i < pts.length; i++) if (dias <= pts[i][0]){ const [d0,y0] = pts[i-1], [d1,y1] = pts[i]; return y0 + (y1-y0)*(dias-d0)/(d1-d0); }
+}
+function calcDl(liq){
+  const ult = ultimoDe(S.tcSerie, hoyAR());
+  const vivo = S.prefs.tcFuente === "vivo" && S.tcVivo ? S.tcVivo.v : null;
+  const tc = S.tcManual > 0 ? S.tcManual : vivo ?? (ult ? ult.v : null);
+  const fuenteTc = S.tcManual > 0 ? "manual" : vivo != null ? "último operado " + S.tcVivo.hora : ult ? "A3500 " + fFecha(ult.fecha) : "sin dato";
+  const filas = [];
+  for (const i of S.dl){
+    if (!i.t || !i.v) continue;
+    const dias = dn(i.v) - dn(liq); if (dias <= 0) continue;
+    const {p, manual} = precioDe(i.t), q = S.precios[i.t];
+    const f = {t:i.t, tipo: tipoDl(i.t), p, manual, vivo: vivoDe(i.t), var: q ? q.pct_change : null, dias, v:i.v};
+    if (p && tc){
+      f.pusd = p / tc;
+      const m = tasas(100 / f.pusd, dias);
+      Object.assign(f, {tir:m.tea*100, tna:m.tna*100, tem:m.tem*100, dm:m.dm});
+      const tea = teaLecapA(dias);
+      if (tea != null){
+        f.tcbe = (p / 100) * Math.pow(1 + tea, dias / 365);          // dólar al que empata con la curva Lecap
+        f.dev = (f.tcbe / tc - 1) * 100;
+        f.devm = (Math.pow(f.tcbe / tc, 30 / dias) - 1) * 100;
+      }
+    }
+    filas.push(f);
+  }
+  filas.sort((a,b) => a.dias - b.dias);
+  return {filas, fit: ponerVsCurva(filas, "tir"), ult, tc, fuenteTc};
+}
+
 // ---------- Datos remotos ----------
 async function getJSON(url, ms = 9000){
   const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), ms);
@@ -514,27 +879,46 @@ async function getJSON(url, ms = 9000){
   finally { clearTimeout(to); }
 }
 async function cargarFeriados(){
-  const y0 = Math.min(+hoyAR().slice(0,4), ...S.cer.filter(i => i.e).map(i => +i.e.slice(0,4)));
+  const y0 = Math.min(+hoyAR().slice(0,4), ...[...S.cer, ...S.tamar].filter(i => i.e).map(i => +i.e.slice(0,4)));
   const ys = []; for (let y = y0; y <= +hoyAR().slice(0,4) + 1; y++) ys.push(y);
   const res = await Promise.allSettled(ys.map(y => getJSON(URL_FERIADOS(y))));
   res.forEach(r => { if (r.status === "fulfilled" && Array.isArray(r.value)) r.value.forEach(f => f.fecha && S.feriados.add(f.fecha)); });
 }
-async function cargarCer(){
-  const fechas = S.cer.filter(i => i.e).map(i => i.e);
+async function serieBcra(id, fechas){
   const desde = iso(Math.min(dn(hoyAR()) - 40, ...fechas.map(dn)) - 25);
   const hasta = iso(dn(hoyAR()) + 10);
+  let off = 0, total = Infinity; const serie = new Map();
+  while (off < total && off < 6000){
+    const j = await getJSON(URL_BCRA(id, desde, hasta, off), 12000);
+    const det = j?.results?.[0]?.detalle || [];
+    total = j?.metadata?.resultset?.count ?? det.length;
+    det.forEach(x => serie.set(x.fecha, +x.valor));
+    if (!det.length) break; off += det.length;
+  }
+  if (!serie.size) throw new Error("vacía");
+  return serie;
+}
+async function cargarCer(){
+  try { S.cerSerie = await serieBcra(30, S.cer.filter(i => i.e).map(i => i.e)); S.cerOk = true; } catch { S.cerOk = false; }
+}
+async function cargarTc(){
+  await Promise.allSettled([cargarTcVivo(), (async () => {
+    try { S.tcSerie = await serieBcra(5, [iso(dn(hoyAR()) - 30)]); S.tcOk = true; } catch { S.tcOk = false; }
+  })()]);
+}
+async function cargarTcVivo(){
   try {
-    let off = 0, total = Infinity; const serie = new Map();
-    while (off < total && off < 6000){
-      const j = await getJSON(URL_CER(desde, hasta, off), 12000);
-      const det = j?.results?.[0]?.detalle || [];
-      total = j?.metadata?.resultset?.count ?? det.length;
-      det.forEach(x => serie.set(x.fecha, +x.valor));
-      if (!det.length) break; off += det.length;
-    }
-    if (!serie.size) throw new Error("vacía");
-    S.cerSerie = serie; S.cerOk = true;
-  } catch { S.cerOk = false; }
+    const j = await getJSON(URL_TC_VIVO, 8000);
+    const v = +j.venta || +j.compra;
+    if (!(v > 0)) throw new Error("sin dato");
+    const t = j.fechaActualizacion ? new Date(j.fechaActualizacion) : null;
+    S.tcVivo = {v, compra: +j.compra, venta: +j.venta,
+      hora: t ? t.toLocaleString("es-AR", {timeZone: TZ, day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit", hour12:false}) : ""};
+  } catch { S.tcVivo = null; }
+  S.tcVivoT = Date.now();
+}
+async function cargarTamar(){
+  try { S.tamSerie = await serieBcra(44, S.tamar.filter(i => i.e).map(i => i.e)); S.tamOk = true; } catch { S.tamOk = false; }
 }
 async function cargarPrecios(){
   const res = await Promise.allSettled(URLS_PRECIOS.map(u => getJSON(u)));
@@ -543,7 +927,7 @@ async function cargarPrecios(){
   if (!ok.length){ S.estado = "error"; return; }
   const nuevos = {};
   ok.forEach(r => r.value.forEach(q => { if (q && q.symbol) nuevos[q.symbol] = q; }));
-  const f = S.prefs.fuente, todos = [...S.lecaps, ...S.cer]; S.movidos = new Set();
+  const f = S.prefs.fuente, todos = [...S.lecaps, ...S.cer, ...S.tamar, ...S.dl]; S.movidos = new Set();
   for (const i of todos){
     const a = S.prev[i.t], b = nuevos[i.t] ? nuevos[i.t][f] : undefined;
     if (a != null && b != null && a !== b) S.movidos.add(i.t);
@@ -552,7 +936,21 @@ async function cargarPrecios(){
   S.prev = Object.fromEntries(todos.map(i => [i.t, nuevos[i.t] ? nuevos[i.t][f] : undefined]));
   S.precios = nuevos; S.estado = "ok";
 }
-async function refrescar(){ await cargarPrecios(); render(); }
+async function cargarRV(tab){
+  try {
+    const arr = await getJSON(URL_RV[tab], 10000);
+    if (!Array.isArray(arr)) throw new Error("formato");
+    const prev = S.rvPrev[tab], mov = new Set(), nuevo = {};
+    for (const q of arr){ if (!q?.symbol) continue; nuevo[q.symbol] = q.c; if (prev[q.symbol] != null && q.c != null && prev[q.symbol] !== q.c) mov.add(q.symbol); }
+    S.rv[tab] = arr; S.rvPrev[tab] = nuevo; S.rvMov[tab] = mov; S.rvErr[tab] = false;
+  } catch { S.rvErr[tab] = true; }
+}
+async function refrescar(){
+  const tareas = [cargarPrecios()];
+  if (URL_RV[S.prefs.tab]) tareas.push(cargarRV(S.prefs.tab));
+  if (Date.now() - S.tcVivoT > 30000) tareas.push(cargarTcVivo());   // el mayorista se consulta cada 30 s como mucho
+  await Promise.allSettled(tareas); render();
+}
 function programar(){
   clearInterval(S.timer);
   if (S.prefs.vivo) S.timer = setInterval(refrescar, S.prefs.cada * 1000);
@@ -598,6 +996,30 @@ function pintarTape(liq){
     const top = fs.length ? fs.reduce((a,f) => f.tem > a.tem ? f : a) : null;
     tiles([["Liquidación", fFecha(liq), modo], ["TEM promedio", prom != null ? fmt(prom)+"%" : "—", `${fs.length} con precio`],
       ["Mayor TEM", top ? fmt(top.tem)+"%" : "—", top ? top.t : ""], ...mejoresPeores(fs)]);
+  } else if (S.prefs.tab === "be"){
+    const b = S.datos.be, prom = arr => { const v = arr.filter(x => x != null && isFinite(x)); return v.length ? v.reduce((a,c) => a + c, 0) / v.length : null; };
+    const pi = prom(b.inf.map(r => r.mens)), pt = prom(b.tam.map(r => r.be)), pd = prom(b.dev.map(r => r.mens));
+    tiles([["Liquidación", fFecha(liq), modo], ["Inflación BE", pi != null ? fmt(pi) + "%" : "—", "mensual, promedio"],
+      ["TAMAR implícita", pt != null ? fmt(pt) + "%" : "—", "TNA, promedio"], ["Deval. implícita", pd != null ? fmt(pd) + "%" : "—", "mensual, promedio"],
+      ["TAMAR actual", S.datos.tamar?.proy != null ? fmt(S.datos.tamar.proy) + "%" : "—", "última conocida"]]);
+  } else if (URL_RV[S.prefs.tab]){
+    const fs = (S.datos.rv || []).filter(f => f.var != null);
+    const sube = fs.filter(f => f.var > 0).length, baja = fs.filter(f => f.var < 0).length;
+    const prom = fs.length ? fs.reduce((a,f) => a + f.var, 0) / fs.length : null;
+    tiles([["Tickers", String((S.datos.rv || []).length), ({ARS:"en pesos", MEP:"en MEP", CCL:"en cable"})[S.rvf[S.prefs.tab].mon]],
+      ["Suben / bajan", `${sube} / ${baja}`, `${fs.length - sube - baja} sin cambio`],
+      ["Var. promedio", prom != null ? `<span class="${signo(prom)}">${flecha(prom)} ${fmt(Math.abs(prom))}%</span>` : "—", "simple, sin ponderar"],
+      ...mejoresPeores(fs)]);
+  } else if (S.prefs.tab === "dl"){
+    const d = S.datos.dl, fs = d.filas.filter(f => razonable(f, "tir"));
+    const prom = fs.length ? fs.reduce((a,f)=>a+f.tir,0)/fs.length : null;
+    tiles([["Liquidación", fFecha(liq), modo], ["Tipo de cambio", d.tc ? fmt(d.tc, 2) : "—", d.fuenteTc],
+      ["TIR USD promedio", prom != null ? fmt(prom)+"%" : "—", `${fs.length} con precio`], ...mejoresPeores(fs)]);
+  } else if (S.prefs.tab === "tamar"){
+    const d = S.datos.tamar, fs = d.filas.filter(f => razonable(f, "tir"));
+    const prom = fs.length ? fs.reduce((a,f)=>a+f.tir,0)/fs.length : null;
+    tiles([["Liquidación", fFecha(liq), modo], ["TAMAR proyectada", d.proy != null ? fmt(d.proy)+"%" : "—", S.tamManual > 0 ? "manual" : d.ult ? "última " + fFecha(d.ult.fecha) : "sin dato"],
+      ["TIR promedio", prom != null ? fmt(prom)+"%" : "—", `${fs.length} con precio`], ...mejoresPeores(fs)]);
   } else {
     const d = S.datos.cer, fs = d.filas.filter(f => razonable(f, "tir"));
     const prom = fs.length ? fs.reduce((a,f)=>a+f.tir,0)/fs.length : null;
@@ -666,6 +1088,24 @@ const COLS = {
     {k:"coef", h:"Coef. CER", d:4}, {k:"vt", h:"Valor técnico", d:3}, {k:"par", h:"Paridad %"}, {k:"v", h:"Vencimiento"},
     {k:"tipo", h:"Tipo", l:true},
   ],
+  dl: [
+    {k:"t", h:"Ticker", l:true}, {k:"p", h:"Precio $"}, {k:"var", h:"Var %"}, {k:"pusd", h:"Precio USD", d:3}, {k:"tir", h:"TIR USD %", strong:true},
+    {k:"tna", h:"TNA %"}, {k:"tem", h:"TEM %"}, {k:"dm", h:"Dur. Mod.", d:3}, {k:"vsc", h:"vs Curva (pb)"}, {k:"dias", h:"Días", d:0},
+    {k:"tcbe", h:"Dólar breakeven", d:2}, {k:"dev", h:"Deval. implícita %"}, {k:"devm", h:"Deval. mensual %"}, {k:"v", h:"Vencimiento"},
+    {k:"tipo", h:"Tipo", l:true},
+  ],
+  tamar: [
+    {k:"t", h:"Ticker", l:true}, {k:"p", h:"Precio"}, {k:"var", h:"Var %"}, {k:"tir", h:"TIR %", strong:true}, {k:"tna", h:"TNA %"},
+    {k:"tem", h:"TEM %"}, {k:"dm", h:"Dur. Mod.", d:3}, {k:"mimp", h:"Margen implícito %", strong:true}, {k:"mg", h:"Margen emisión %"},
+    {k:"prom", h:"TAMAR prom. %"}, {k:"conocido", h:"% conocida", d:0}, {k:"vf", h:"Pago final proy.", d:3}, {k:"dias", h:"Días", d:0},
+    {k:"v", h:"Vencimiento"}, {k:"tipo", h:"Tipo", l:true},
+  ],
+};
+const IDS = {
+  lecaps: {tbl:"tblL", ed:"tblEdL", msg:"msgL", nota:"notaL"},
+  cer:    {tbl:"tblC", ed:"tblEdC", msg:"msgC", nota:"notaC"},
+  tamar:  {tbl:"tblT", ed:"tblEdT", msg:"msgT", nota:"notaT"},
+  dl:     {tbl:"tblD", ed:"tblEdD", msg:"msgD", nota:"notaD"},
 };
 function celdaInner(c, f){
   const x = f[c.k];
@@ -685,7 +1125,7 @@ function celdaPrecio(f, flash){
     + `<button type="button" class="undo" data-undo="${esc(f.t)}" title="Volver al precio en vivo${f.vivo ? " (" + fmt(f.vivo,3) + ")" : ""}" aria-label="Volver al precio en vivo" ${f.manual ? "" : "hidden"}>↺</button></span></td>`;
 }
 function pintarTabla(tab, filas){
-  const tbl = $(tab === "lecaps" ? "tblL" : "tblC"), cols = COLS[tab], {k, dir} = S.sort[tab];
+  const tbl = $(IDS[tab].tbl), cols = COLS[tab], {k, dir} = S.sort[tab];
   const foco = tbl.contains(document.activeElement) && document.activeElement.classList.contains("pin");
   if (foco){                                  // mientras escribís, solo actualizo números
     for (const f of filas){
@@ -709,7 +1149,9 @@ function notaTabla(tab, filas){
   if (man) t += ` ${man} con precio manual (en violeta).`;
   if (sin.length) t += ` Sin precio: ${sin.join(", ")}.`;
   if (tab === "cer") t += " Cupón cero: TIR real = (100 / (Precio / Coef. CER))^(365/días) − 1. TNA real con capitalización semestral: 2 × ((1 + TIR)^½ − 1). Duales: pata CER (capital × coef. CER). TX28: TIR del flujo real de cupones y amortizaciones.";
-  $(tab === "lecaps" ? "notaL" : "notaC").textContent = t;
+  if (tab === "dl") t += " Precio USD = precio en pesos / tipo de cambio (último mayorista operado o A3500, según lo elegido). TIR USD = (100 / precio USD)^(365/días) − 1; TNA simple. Dólar breakeven: el A3500 al vencimiento que te deja igual que la curva de Lecaps al mismo plazo (si el dólar termina arriba, gana el dollar linked). Deval. implícita: cuánto tiene que subir el A3500 desde hoy para llegar al breakeven.";
+  if (tab === "tamar") t += " Pago final = 100 × (1 + TEM)^(meses 30/360), con TEM = [(1 + (TAMAR prom. + margen) × 32/365)^(365/32)]^(1/12) − 1. TAMAR prom. = días conocidos del BCRA + días restantes con la TAMAR proyectada. Margen implícito = spread sobre la TAMAR proyectada que paga el bono a ese precio. TNA con capitalización semestral. Duales: solo la pata TAMAR.";
+  $(IDS[tab].nota).textContent = t;
 }
 
 // ---------- Render: CER aplicable ----------
@@ -721,16 +1163,222 @@ function pintarCerBox(d){
     "No pude leer la serie del BCRA desde este navegador. Cargá el CER aplicable a mano y el CER base de cada bono en «Editar instrumentos».";
 }
 
+function pintarTamBox(d){
+  $("tamFecha").textContent = d.ult ? fFecha(d.ult.fecha) : "—";
+  $("tamValor").textContent = d.ult ? fmt(d.ult.v, 4) + "%" : "—";
+  $("tamEstado").textContent = S.tamOk === null ? "Cargando serie del BCRA…" :
+    S.tamOk ? (S.tamManual > 0 ? `Proyectando con ${fmt(S.tamManual)}% (manual).` : "Proyectando con la última TAMAR conocida.") :
+    "No pude leer la TAMAR del BCRA desde este navegador. Escribí la TAMAR a proyectar; sin la tira pasada el promedio usa solo ese valor.";
+}
+
+function pintarTcBox(d){
+  document.querySelectorAll("#segTc button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === S.prefs.tcFuente));
+  $("tcVivo").textContent = S.tcVivo ? fmt(S.tcVivo.v, 2) : "—";
+  $("tcVivoHora").textContent = S.tcVivo ? `venta · ${S.tcVivo.hora}` : "sin dato";
+  $("tcValor").textContent = d.ult ? fmt(d.ult.v, 4) : "—";
+  $("tcFecha").textContent = d.ult ? fFecha(d.ult.fecha) : S.tcOk === false ? "sin dato" : "";
+  const fallo = S.prefs.tcFuente === "vivo" && !S.tcVivo && !(S.tcManual > 0);
+  $("tcEstado").textContent = S.tcManual > 0 ? `Usando ${fmt(S.tcManual, 2)} (manual).` :
+    fallo ? (d.ult ? "No pude leer el mayorista en vivo; uso el A3500." : "No pude leer el tipo de cambio. Escribilo a mano.") :
+    `Usando ${d.fuenteTc}.`;
+}
+
+// ---------- Render: CEDEARs y acciones ----------
+const COLS_RV = [
+  {k:"fav", h:"★"}, {k:"t", h:"Ticker", l:true}, {k:"c", h:"Último"}, {k:"var", h:"Var %"},
+  {k:"bid", h:"Compra"}, {k:"ask", h:"Venta"}, {k:"qb", h:"Cant. compra", d:0}, {k:"qa", h:"Cant. venta", d:0},
+  {k:"v", h:"Volumen", d:0}, {k:"ops", h:"Operaciones", d:0},
+];
+function clasificador(arr){
+  const px = new Map(arr.map(q => [q.symbol, +q.c || +q.px_bid || +q.px_ask || 0]));
+  // especie D/C = misma base en dólares: existe la base y su precio en dólares es mucho menor (evita confundir tickers como YPFD)
+  const esUsd = (s, suf) => { if (s.length < 2 || !s.endsWith(suf)) return false; const b = s.slice(0,-1); if (!px.has(b)) return false;
+    const pb = px.get(b), ps = px.get(s); return !(pb > 0 && ps > 0) || ps < pb / 50; };
+  return s => esUsd(s, "D") ? "MEP" : esUsd(s, "C") ? "CCL" : "ARS";
+}
+function filasRV(tab){
+  const arr = S.rv[tab] || [], f = S.rvf[tab], monDe = clasificador(arr);
+  const q = f.q.trim().toUpperCase();
+  return arr.filter(x => x?.symbol && monDe(x.symbol) === f.mon && (!q || x.symbol.includes(q)) && (!f.fav || S.favs.has(x.symbol)) && (!f.op || (+x.q_op || +x.v) > 0))
+    .map(x => ({t:x.symbol, c:+x.c || null, var: x.pct_change != null ? +x.pct_change : null, bid:+x.px_bid || null, ask:+x.px_ask || null,
+      qb:+x.q_bid || null, qa:+x.q_ask || null, v:+x.v || null, ops: x.q_op != null ? +x.q_op : null, fav: S.favs.has(x.symbol) ? 1 : 0}));
+}
+function celdaRV(c, f, mov){
+  switch (c.k){
+    case "fav": return `<td><button type="button" class="star${f.fav ? " on" : ""}" data-fav="${esc(f.t)}" aria-label="Favorito ${esc(f.t)}">★</button></td>`;
+    case "t": return `<td class="l tk">${esc(f.t)}</td>`;
+    case "c": return `<td class="strong${mov ? " flashc" : ""}">${fmt(f.c, f.c != null && f.c < 10 ? 3 : 2)}</td>`;
+    case "var": return `<td>${f.var == null ? "–" : `<span class="pill ${signo(f.var)}">${flecha(f.var)} ${fmt(Math.abs(f.var))}</span>`}</td>`;
+    case "bid": case "ask": return `<td>${fmt(f[c.k], f[c.k] != null && f[c.k] < 10 ? 3 : 2)}</td>`;
+    default: return `<td>${f[c.k] == null ? "–" : fmt(f[c.k], 0)}</td>`;
+  }
+}
+function pintarRV(tab){
+  const tbl = $(tab === "cedears" ? "tblCe" : "tblAc"), {k, dir} = S.sort[tab], fs = filasRV(tab);
+  fs.sort((a,b) => { const x = a[k], y = b[k]; if (x == null) return 1; if (y == null) return -1; return (x > y ? 1 : x < y ? -1 : 0) * dir; });
+  tbl.tHead.innerHTML = "<tr>" + COLS_RV.map(c => `<th class="sort${c.l ? " l" : ""}" data-k="${c.k}">${c.h}${c.k === k ? `<span class="arr">${dir > 0 ? "↑" : "↓"}</span>` : ""}</th>`).join("") + "</tr>";
+  const mov = S.rvMov[tab];
+  tbl.tBodies[0].innerHTML = fs.length ? fs.map(f => "<tr>" + COLS_RV.map(c => celdaRV(c, f, mov.has(f.t))).join("") + "</tr>").join("")
+    : `<tr><td class="l" colspan="${COLS_RV.length}">${S.rv[tab] == null ? (S.rvErr[tab] ? "No pude leer los precios de data912." : "Cargando…") : "Ningún ticker coincide con el filtro."}</td></tr>`;
+  document.querySelectorAll(`[data-mon="${tab}"] button`).forEach(b => b.setAttribute("aria-pressed", b.dataset.v === S.rvf[tab].mon));
+  const sube = fs.filter(f => f.var > 0).length, baja = fs.filter(f => f.var < 0).length;
+  $(tab === "cedears" ? "notaCe" : "notaAc").textContent = `${fs.length} tickers · ${sube} suben · ${baja} bajan · ${fs.length - sube - baja} sin cambio. Moneda ${({ARS:"pesos", MEP:"dólar MEP (especie D)", CCL:"dólar cable (especie C)"})[S.rvf[tab].mon]}. La celda de precio se ilumina cuando operó desde la consulta anterior.`;
+  return fs;
+}
+
+// ---------- Render: breakevens ----------
+function celdaFija(r){
+  if (r.fx.fuera) return `<td class="dim" title="Plazo fuera de la curva de tasa fija">fuera de curva</td>`;
+  const nota = r.fx.par ? ` <span class="dim" style="font-size:.75rem">vs ${esc(r.fx.par)}</span>` : r.fx.extrap ? ` <span class="dim" title="Extrapolado">*</span>` : "";
+  return `<td>${fmt(r.fija)}${nota}</td>`;
+}
+function conviene(exp, be, si, no){
+  if (exp == null || be == null || !isFinite(be)) return "<td class=\"dim\">–</td>";
+  const gana = exp > be;
+  return `<td><span class="pill ${gana ? "up" : "flat"}" style="${gana ? "" : "color:var(--ink)"}">${gana ? si : no}</span> <span class="dim">${fPb((exp - be) * 100)} pb</span></td>`;
+}
+function tablaBE(id, cab, filas){
+  $(id).innerHTML = `<thead><tr>${cab.map(([h, l]) => `<th class="${l ? "l" : ""}">${h}</th>`).join("")}</tr></thead><tbody>` +
+    (filas.length ? filas.join("") : `<tr><td class="l" colspan="${cab.length}">Sin datos todavía: hace falta precio del bono, la serie del BCRA y la curva de Lecaps.</td></tr>`) + "</tbody>";
+}
+function pintarBE(b){
+  const P = S.prefs;
+  tablaBE("tblBI", [["Ticker",1],["Vencimiento"],["Días"],["TIR real %"],["Tasa fija TEA %"],["Inflación BE anual %"],["Inflación BE mensual %"],["Con tu escenario",1]],
+    b.inf.map(r => `<tr><td class="l tk">${esc(r.t)}</td><td>${fFecha(r.v)}</td><td>${r.dias}</td><td>${fmt(r.tir)}</td>${celdaFija(r)}<td>${fmt(r.anual)}</td><td class="strong">${fmt(r.mens)}</td>${conviene(P.expInf, r.mens, "CER", "Tasa fija")}</tr>`));
+  tablaBE("tblBT", [["Ticker",1],["Vencimiento"],["Días"],["TIR % (TAMAR actual)"],["Tasa fija TEA %"],["TAMAR implícita (TNA %)"],["TAMAR implícita (TEM %)"],["vs TAMAR actual (pb)"],["Con tu escenario",1]],
+    b.tam.map(r => `<tr><td class="l tk">${esc(r.t)}</td><td>${fFecha(r.v)}</td><td>${r.dias}</td><td>${fmt(r.tir)}</td>${celdaFija(r)}<td class="strong">${fmt(r.be)}</td><td>${fmt(r.beTem)}</td><td>${r.vsAct == null ? "–" : `<span class="pill ${signo(-r.vsAct)}">${fPb(r.vsAct)}</span>`}</td>${conviene(P.expTam, r.be, "TAMAR", "Tasa fija")}</tr>`));
+  tablaBE("tblBD", [["Ticker",1],["Vencimiento"],["Días"],["TIR USD %"],["Tasa fija TEA %"],["Dólar breakeven"],["Deval. total %"],["Deval. mensual %"],["Con tu escenario",1]],
+    b.dev.map(r => `<tr><td class="l tk">${esc(r.t)}</td><td>${fFecha(r.v)}</td><td>${r.dias}</td><td>${fmt(r.tir)}</td>${celdaFija(r)}<td>${fmt(r.tcbe)}</td><td>${fmt(r.total)}</td><td class="strong">${fmt(r.mens)}</td>${conviene(P.expDev, r.mens, "Dollar linked", "Tasa fija")}</tr>`));
+  $("notaB").textContent = "Tasa fija: TEA de la curva de Lecaps/Boncaps interpolada al plazo; «vs TICKER» = hay un bono de tasa fija con el mismo vencimiento; * = extrapolado apenas fuera de la curva. «fuera de curva» = el plazo supera la Boncap más larga: sumá Boncaps más largas en Lecaps para cubrirlo. La inflación breakeven no corrige el rezago del CER (≈ 1,5 meses), así que mide la inflación del período desplazado. La TAMAR implícita usa la tira real pasada y la supone constante desde hoy. TX28 queda afuera por tener cupones.";
+  pintarGraficoBE(b);
+}
+function pintarGraficoBE(b){
+  const svg = $("svgB"), W = Math.max(320, $("chartB").clientWidth), H = W < 560 ? 300 : 360;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const series = [
+    {k:"inf", c:"var(--pos)", n:"Inflación BE", pts: b.inf.filter(r => r.mens != null).map(r => ({x:r.dias, y:r.mens, t:r.t}))},
+    {k:"tam", c:"var(--accent)", n:"TAMAR implícita", pts: b.tam.filter(r => r.beTem != null && isFinite(r.beTem)).map(r => ({x:r.dias, y:r.beTem, t:r.t, extra:`TNA ${fmt(r.be)}%`}))},
+    {k:"dev", c:"var(--boncap)", n:"Deval. implícita", pts: b.dev.filter(r => r.mens != null).map(r => ({x:r.dias, y:r.mens, t:r.t}))},
+  ];
+  const linea = b.curva.map(c => ({x:c.dias, y:c.tem}));
+  const todos = [...series.flatMap(s => s.pts), ...linea];
+  if (!todos.length){ svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle">Sin datos para graficar</text>`; return; }
+  const exp = [[S.prefs.expInf, "var(--pos)", "inflación"], [S.prefs.expTam != null ? temTamar(S.prefs.expTam) * 100 : null, "var(--accent)", "TAMAR"], [S.prefs.expDev, "var(--boncap)", "devaluación"]].filter(e => e[0] != null && isFinite(e[0]));
+  const ys = [...todos.map(p => p.y), ...exp.map(e => e[0])];
+  const P = {l: 52, r: 18, t: 22, b: 40};
+  const xMax = Math.max(...todos.map(p => p.x)) * 1.06;
+  let yMin = Math.min(...ys, 0), yMax = Math.max(...ys);
+  const pad = Math.max(0.2, (yMax - yMin) * 0.12); yMin = Math.min(yMin, 0); yMax += pad;
+  const X = v => P.l + v / xMax * (W - P.l - P.r), Y = v => H - P.b - (v - yMin) / (yMax - yMin) * (H - P.t - P.b);
+  let g = "";
+  const ty = ticks(yMin, yMax), tx = ticks(0, xMax);
+  ty.forEach(v => { if (v < yMin || v > yMax) return; g += `<line x1="${P.l}" x2="${W-P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${P.l-8}" y="${Y(v)+4}" text-anchor="end">${fmt(v, ty.dec)}%</text>`; });
+  tx.forEach(v => { if (v > xMax) return; g += `<line x1="${X(v)}" x2="${X(v)}" y1="${P.t}" y2="${H-P.b}" stroke="var(--line)" stroke-dasharray="2 4"/><text x="${X(v)}" y="${H-P.b+18}" text-anchor="middle">${fmt(v, 0)}</text>`; });
+  g += `<text x="${(P.l + W - P.r)/2}" y="${H-4}" text-anchor="middle">Días al vencimiento</text><text x="${P.l}" y="${P.t-8}">% mensual</text>`;
+  let ultY = -1e9;                                   // etiquetas apiladas si dos escenarios quedan pegados
+  [...exp].sort((a, b) => b[0] - a[0]).forEach(([v, c, n]) => {
+    let ly = Y(v) - 5; if (ly - ultY < 13) ly = ultY + 13; ultY = ly;
+    g += `<line x1="${P.l}" x2="${W-P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="${c}" stroke-width="1.4" stroke-dasharray="7 5" opacity=".8"/><text x="${W-P.r}" y="${ly}" text-anchor="end" style="fill:${c}">tu ${n}</text>`;
+  });
+  if (linea.length > 1) g += `<path d="${linea.map((p, i) => (i ? "L" : "M") + X(p.x).toFixed(1) + " " + Y(p.y).toFixed(1)).join("")}" fill="none" stroke="var(--ink)" stroke-width="1.8" opacity=".7"/>`;
+  const pts = [];
+  series.forEach(s => s.pts.forEach(p => { pts.push({...p, c:s.c, n:s.n}); }));
+  pts.forEach((p, i) => { g += `<g class="pt" data-i="${i}" style="cursor:pointer"><circle cx="${X(p.x)}" cy="${Y(p.y)}" r="10" fill="transparent"/><circle cx="${X(p.x)}" cy="${Y(p.y)}" r="5" fill="${p.c}" stroke="var(--surface)" stroke-width="1.5"/></g>`; });
+  svg.innerHTML = g;
+  $("legEsc").textContent = exp.length ? "– – tu escenario" : "";
+  const tip = $("tipB");
+  svg.querySelectorAll(".pt").forEach(el => {
+    const p = pts[+el.dataset.i];
+    const show = () => { tip.innerHTML = `<b>${esc(p.t)}</b> · ${p.n}<br>${fmt(p.y)}% mensual${p.extra ? " · " + p.extra : ""}<br>${p.x} días`;
+      const r = svg.getBoundingClientRect(), k = r.width / W; tip.style.left = Math.min(Math.max(X(p.x)*k, 90), r.width - 90) + "px"; tip.style.top = Y(p.y)*k + "px"; tip.hidden = false; };
+    el.addEventListener("pointerenter", show); el.addEventListener("click", show); el.addEventListener("pointerleave", () => tip.hidden = true);
+  });
+}
+
+// ---------- Cinta ----------
+let cintaHTML = "";
+function pintarCinta(){
+  const el = $("cinta");
+  if (!S.prefs.cinta){ el.hidden = true; return; }
+  const items = [];
+  for (const tab of ["acciones", "cedears"]){
+    const arr = S.rv[tab] || [], monDe = clasificador(arr);
+    const ars = arr.filter(q => q?.symbol && +q.c > 0 && monDe(q.symbol) === "ARS").map(q => ({t:q.symbol, c:+q.c, var:+q.pct_change || 0, v:+q.v || 0, tab}));
+    items.push(...ars);
+  }
+  if (!items.length){ el.hidden = true; return; }
+  const favs = items.filter(i => S.favs.has(i.t));
+  const sel = favs.length >= 5 ? favs :
+    [...items.filter(i => i.tab === "acciones").sort((a,b) => b.v - a.v).slice(0, 20),
+     ...items.filter(i => i.tab === "cedears").sort((a,b) => b.v - a.v).slice(0, 15)];
+  const uno = sel.map(i => {
+    const cl = i.var > 0 ? "u" : i.var < 0 ? "d" : "z";
+    return `<span class="ci"><b>${esc(i.t)}</b><span class="tg">${i.tab === "cedears" ? "CEDEAR" : ""}</span><span class="px">${fmt(i.c, i.c < 10 ? 3 : 2)}</span><span class="${cl}">${flecha(i.var)} ${fmt(Math.abs(i.var))}%</span></span>`;
+  }).join("");
+  const html = uno + uno;                                          // duplicado para que el loop no tenga corte
+  if (html !== cintaHTML){
+    cintaHTML = html;
+    const tr = $("cintaTrack"); tr.innerHTML = html;
+    tr.style.setProperty("--dur", Math.max(30, sel.length * 3.2) + "s");
+  }
+  el.hidden = false;
+}
+// Segunda cinta: bonos de todas las solapas, por volumen, con su tasa clave
+let cinta2HTML = "", cinta2T = 0, cinta2Tasas = 0;
+function pintarCinta2(){
+  const el = $("cinta2");
+  if (!S.prefs.cinta){ el.hidden = true; return; }
+  const vistos = new Set(), items = [];
+  const agregar = (filas, etiqueta, tasa) => filas.forEach(f => {
+    if (vistos.has(f.t) || !(f.p > 0) || f.manual) return;
+    const q = S.precios[f.t]; if (!q) return;
+    vistos.add(f.t); items.push({t:f.t, p:f.p, var:f.var ?? 0, v:+q.v || 0, et:etiqueta(f), tasa:tasa(f)});
+  });
+  const d = S.datos;
+  if (d.lecaps) agregar(d.lecaps.filas, f => f.tipo, f => f.tem != null ? ["TEM", f.tem] : null);
+  if (d.cer) agregar(d.cer.filas, f => f.tipo === "DUAL" ? "DUAL" : "CER", f => f.tir != null ? ["TIR real", f.tir] : null);
+  if (d.tamar) agregar(d.tamar.filas, f => f.tipo === "TAMAR" ? "TAMAR" : "DUAL", f => f.tir != null ? ["TIR", f.tir] : null);
+  if (d.dl) agregar(d.dl.filas, () => "DL", f => f.tir != null ? ["TIR USD", f.tir] : null);
+  const sel = items.filter(i => i.v > 0).sort((a,b) => b.v - a.v).slice(0, 25);
+  if (!sel.length){ el.hidden = true; return; }
+  // se rearma cada 30 s para no cortar el loop, salvo que recién lleguen tasas (CER, TAMAR o dólar cargan después)
+  const conTasa = sel.filter(i => i.tasa).length;
+  if (cinta2HTML && Date.now() - cinta2T < 30000 && conTasa <= cinta2Tasas){ el.hidden = false; return; }
+  cinta2Tasas = conTasa;
+  const uno = sel.map(i => {
+    const cl = i.var > 0 ? "u" : i.var < 0 ? "d" : "z";
+    const rt = i.tasa && isFinite(i.tasa[1]) ? `<span class="rt">${i.tasa[0]} <b>${fmt(i.tasa[1])}%</b></span>` : "";
+    return `<span class="ci"><b>${esc(i.t)}</b><span class="tg">${i.et}</span><span class="px">${fmt(i.p, 2)}</span><span class="${cl}">${flecha(i.var)} ${fmt(Math.abs(i.var))}%</span>${rt}</span>`;
+  }).join("");
+  const html = uno + uno;
+  if (html !== cinta2HTML){
+    cinta2HTML = html; cinta2T = Date.now();
+    const tr = $("cintaTrack2"); tr.innerHTML = html;
+    tr.style.setProperty("--dur", Math.max(40, sel.length * 4.2) + "s");
+  }
+  el.hidden = false;
+}
+async function cargarCinta(){
+  if (!S.prefs.cinta) return;
+  await Promise.allSettled([cargarRV("acciones"), cargarRV("cedears")]);
+  pintarCinta();
+}
+
 // ---------- Render: editores ----------
 function pintarEditor(tab){
-  const lista = S[tab], cer = tab === "cer";
-  const cab = cer ? `<th class="l">Ticker</th><th class="l">Emisión</th><th class="l">Vencimiento</th><th>CER base auto</th><th>CER base manual</th><th></th>`
+  const lista = S[tab], cer = tab === "cer", tam = tab === "tamar";
+  const dl = tab === "dl";
+  const cab = dl ? `<th class="l">Ticker</th><th class="l">Emisión (opcional)</th><th class="l">Vencimiento</th><th>Tipo</th><th></th>` : tam ? `<th class="l">Ticker</th><th class="l">Emisión</th><th class="l">Vencimiento</th><th>Margen %</th><th>Tipo</th><th></th>` : cer ? `<th class="l">Ticker</th><th class="l">Emisión</th><th class="l">Vencimiento</th><th>CER base auto</th><th>CER base manual</th><th></th>`
                   : `<th class="l">Ticker</th><th class="l">Emisión</th><th class="l">Vencimiento</th><th>TEM emisión %</th><th>Pago final calc.</th><th>Pago final manual</th><th></th>`;
   const filas = lista.map((i, k) => {
     const base = `<td><input type="text" id="ed-${tab}-t-${k}" data-f="t" value="${esc(i.t || "")}" style="min-width:80px;text-transform:uppercase"></td>
       <td><input type="date" id="ed-${tab}-e-${k}" data-f="e" value="${esc(i.e || "")}"></td>
       <td><input type="date" id="ed-${tab}-v-${k}" data-f="v" value="${esc(i.v || "")}"></td>`;
-    const resto = cer
+    const resto = dl
+      ? `<td class="dim l" style="font-family:var(--f-body)">${i.t ? tipoDl(i.t) : "–"}</td>`
+      : tam
+      ? `<td><input type="text" inputmode="decimal" id="ed-${tab}-mg-${k}" data-f="mg" value="${i.mg ?? ""}"></td><td class="dim l" style="font-family:var(--f-body)">${i.t ? tipoTamar(i.t) : "–"}</td>`
+      : cer
       ? `<td class="dim">${i.e && S.cerSerie.size ? fmt(cerEn(habilAtras(i.e, 10))?.v, 4) : "–"}</td>
          <td><input type="text" inputmode="decimal" id="ed-${tab}-cb-${k}" data-f="cb" placeholder="opcional" value="${i.cb ?? ""}"></td>`
       : `<td><input type="text" inputmode="decimal" id="ed-${tab}-tem-${k}" data-f="tem" value="${i.tem ?? ""}"></td>
@@ -738,7 +1386,7 @@ function pintarEditor(tab){
          <td><input type="text" inputmode="decimal" id="ed-${tab}-vf-${k}" data-f="vf" placeholder="opcional" value="${i.vf ?? ""}"></td>`;
     return `<tr data-k="${k}">${base}${resto}<td><button type="button" class="btn danger sm" data-del="${k}">Quitar</button></td></tr>`;
   }).join("");
-  $(cer ? "tblEdC" : "tblEdL").innerHTML = `<thead><tr>${cab}</tr></thead><tbody>${filas}</tbody>`;
+  $(IDS[tab].ed).innerHTML = `<thead><tr>${cab}</tr></thead><tbody>${filas}</tbody>`;
 }
 
 // ---------- Render general ----------
@@ -746,6 +1394,11 @@ function render(){
   const liq = liquidacion();
   S.datos.lecaps = calcLecaps(liq);
   S.datos.cer = calcCer(liq);
+  S.datos.tamar = calcTamar(liq);
+  S.datos.dl = calcDl(liq);
+  S.datos.be = calcBE(liq);
+  if (URL_RV[S.prefs.tab]) S.datos.rv = pintarRV(S.prefs.tab);
+  pintarCinta(); pintarCinta2();
   pintarEstado(); pintarTape(liq);
   if (S.prefs.tab === "lecaps"){
     const d = S.datos.lecaps;
@@ -753,6 +1406,24 @@ function render(){
       f => f.tipo === "BONCAP" ? "var(--boncap)" : "var(--accent)",
       f => `<b>${esc(f.t)}</b> · ${f.tipo}${f.manual ? " · manual" : ""}<br>TNA ${fmt(f.tna)}% · TEM ${fmt(f.tem)}%<br>Precio ${fmt(f.p,3)} · ${f.dias} días${f.vsc != null ? `<br>vs curva ${fPb(f.vsc)} pb` : ""}`);
     pintarTabla("lecaps", d.filas); notaTabla("lecaps", d.filas);
+  } else if (S.prefs.tab === "be"){
+    pintarBE(S.datos.be);
+  } else if (URL_RV[S.prefs.tab]){
+    // CEDEARs y acciones: la tabla ya se pintó arriba
+  } else if (S.prefs.tab === "dl"){
+    const d = S.datos.dl;
+    pintarTcBox(d);
+    pintarCurva({svg:"svgD", chart:"chartD", tip:"tipD"}, d.filas, "tir", d.fit, "TIR USD",
+      f => f.tipo === "LELINK" ? "var(--accent)" : "var(--boncap)",
+      f => `<b>${esc(f.t)}</b> · ${f.tipo}${f.manual ? " · manual" : ""}<br>TIR USD ${fmt(f.tir)}% · TEM ${fmt(f.tem)}%<br>Precio $${fmt(f.p,3)} · USD ${fmt(f.pusd,3)}${f.tcbe ? `<br>Breakeven $${fmt(f.tcbe,2)} (${fmt(f.dev)}%)` : ""}`);
+    pintarTabla("dl", d.filas); notaTabla("dl", d.filas);
+  } else if (S.prefs.tab === "tamar"){
+    const d = S.datos.tamar;
+    pintarTamBox(d);
+    pintarCurva({svg:"svgT", chart:"chartT", tip:"tipT"}, d.filas, "tir", d.fit, "TIR",
+      f => f.tipo === "TAMAR" ? "var(--accent)" : "var(--boncap)",
+      f => `<b>${esc(f.t)}</b> · ${f.tipo}${f.manual ? " · manual" : ""}<br>TIR ${fmt(f.tir)}% · TEM ${fmt(f.tem)}%<br>Margen implícito ${fmt(f.mimp)}% · emisión ${fmt(f.mg)}%<br>Precio ${fmt(f.p,3)} · ${f.dias} días`);
+    pintarTabla("tamar", d.filas); notaTabla("tamar", d.filas);
   } else {
     const d = S.datos.cer;
     pintarCerBox(d);
@@ -766,6 +1437,8 @@ function mostrarTab(tab){
   S.prefs.tab = tab; guardar();
   document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === tab));
   document.querySelectorAll("[data-panel]").forEach(p => p.hidden = p.dataset.panel !== tab);
+  if (URL_RV[tab]){ render(); if (!S.rv[tab]) cargarRV(tab).then(render); return; }
+  if (tab === "be"){ render(); return; }
   pintarEditor(tab); render();
 }
 function pintarControles(){
@@ -773,6 +1446,8 @@ function pintarControles(){
   $("ctlFecha").hidden = S.prefs.modo !== "Fecha";
   $("inFecha").value = S.prefs.fecha || habil(hoyAR(), 1);
   $("selFuente").value = S.prefs.fuente;
+  $("chkCinta").checked = S.prefs.cinta;
+  for (const k of ["expInf", "expTam", "expDev"]) if (document.activeElement !== $(k)) $(k).value = S.prefs[k] != null ? String(S.prefs[k]).replace(".", ",") : "";
   $("chkVivo").checked = S.prefs.vivo; $("selCada").value = String(S.prefs.cada); $("selCada").disabled = !S.prefs.vivo;
 }
 
@@ -780,13 +1455,15 @@ function pintarControles(){
 $("segLiq").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.prefs.modo = b.dataset.v; if (b.dataset.v === "Fecha" && !S.prefs.fecha) S.prefs.fecha = habil(hoyAR(), 1); guardar(); pintarControles(); render(); });
 $("inFecha").addEventListener("change", e => { S.prefs.fecha = e.target.value || null; guardar(); render(); });
 $("selFuente").addEventListener("change", e => { S.prefs.fuente = e.target.value; S.prev = {}; guardar(); render(); });
+for (const k of ["expInf", "expTam", "expDev"]) $(k).addEventListener("input", e => { S.prefs[k] = parseNum(e.target.value); guardar(); render(); });
+$("chkCinta").addEventListener("change", e => { S.prefs.cinta = e.target.checked; guardar(); cinta2HTML = ""; if (S.prefs.cinta) cargarCinta(); pintarCinta(); pintarCinta2(); });
 $("chkVivo").addEventListener("change", e => { S.prefs.vivo = e.target.checked; guardar(); pintarControles(); programar(); });
 $("selCada").addEventListener("change", e => { S.prefs.cada = +e.target.value; guardar(); programar(); });
 $("btnAct").addEventListener("click", () => { $("btnAct").textContent = "Actualizando…"; refrescar().finally(() => $("btnAct").textContent = "Actualizar"); });
 $("tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b){ mostrarTab(b.dataset.tab); try { history.replaceState(null, "", "#" + b.dataset.tab); } catch {} } });
 
-for (const tab of ["lecaps", "cer"]){
-  const tbl = $(tab === "lecaps" ? "tblL" : "tblC");
+for (const tab of ["lecaps", "cer", "tamar", "dl"]){
+  const tbl = $(IDS[tab].tbl);
   tbl.addEventListener("click", e => {
     const th = e.target.closest("th[data-k]");
     if (th){ const k = th.dataset.k, s = S.sort[tab]; S.sort[tab] = {k, dir: s.k === k ? -s.dir : (k === "t" || k === "tipo" ? 1 : -1)}; render(); return; }
@@ -807,14 +1484,15 @@ for (const tab of ["lecaps", "cer"]){
     if (ins[i + 1]) ins[i + 1].select();
   });
 
-  const ed = $(tab === "lecaps" ? "tblEdL" : "tblEdC"), msg = $(tab === "lecaps" ? "msgL" : "msgC");
+  const ed = $(IDS[tab].ed), msg = $(IDS[tab].msg);
   ed.addEventListener("change", e => {
     const inp = e.target.closest("input[data-f]"); if (!inp) return;
     const k = +inp.closest("tr").dataset.k, f = inp.dataset.f;
     let v = inp.value.trim();
-    if (f === "t") v = v.toUpperCase(); else if (["tem","vf","cb"].includes(f)) v = parseNum(v);
+    if (f === "t") v = v.toUpperCase(); else if (["tem","vf","cb","mg"].includes(f)) v = parseNum(v);
     S[tab][k][f] = v; guardar(); pintarEditor(tab); render(); msg.textContent = "Guardado.";
     if (tab === "cer" && f === "e" && v && S.cerSerie.size && !cerEn(habilAtras(v, 10))) cargarCer().then(() => { pintarEditor(tab); render(); });
+    if (tab === "tamar" && f === "e" && v) cargarTamar().then(render);
   });
   ed.addEventListener("click", e => {
     const b = e.target.closest("[data-del]"); if (!b) return;
@@ -833,24 +1511,45 @@ document.querySelectorAll("[data-reset]").forEach(b => {
   b.addEventListener("click", () => {
     if (!armado){ armado = true; b.textContent = "Tocá de nuevo para confirmar"; setTimeout(() => { armado = false; b.textContent = "Restaurar originales"; }, 4000); return; }
     armado = false; b.textContent = "Restaurar originales";
-    const tab = b.dataset.reset; S[tab] = (tab === "lecaps" ? LECAP_DEFAULT : CER_DEFAULT).map(x => ({...x}));
-    guardar(); pintarEditor(tab); render(); $(tab === "lecaps" ? "msgL" : "msgC").textContent = "Lista original restaurada.";
+    const tab = b.dataset.reset; S[tab] = ({lecaps: LECAP_DEFAULT, cer: CER_DEFAULT, tamar: TAMAR_DEFAULT, dl: DL_DEFAULT})[tab].map(x => ({...x}));
+    guardar(); pintarEditor(tab); render(); $(IDS[tab].msg).textContent = "Lista original restaurada.";
   });
 });
 $("cerManual").addEventListener("input", e => { S.cerManual = parseNum(e.target.value); render(); });
+$("tamManual").addEventListener("input", e => { S.tamManual = parseNum(e.target.value); render(); });
+$("tcManual").addEventListener("input", e => { S.tcManual = parseNum(e.target.value); render(); });
+$("segTc").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.prefs.tcFuente = b.dataset.v; guardar(); render(); });
+
+for (const tab of ["cedears", "acciones"]){
+  const tbl = $(tab === "cedears" ? "tblCe" : "tblAc");
+  tbl.addEventListener("click", e => {
+    const th = e.target.closest("th[data-k]");
+    if (th){ const k = th.dataset.k, s = S.sort[tab]; S.sort[tab] = {k, dir: s.k === k ? -s.dir : (k === "t" ? 1 : -1)}; render(); return; }
+    const st = e.target.closest("[data-fav]");
+    if (st){ const t = st.dataset.fav; S.favs.has(t) ? S.favs.delete(t) : S.favs.add(t); store.set("cb-favs", [...S.favs]); render(); }
+  });
+  $(`q-${tab}`).addEventListener("input", e => { S.rvf[tab].q = e.target.value; render(); });
+  $(`fav-${tab}`).addEventListener("change", e => { S.rvf[tab].fav = e.target.checked; render(); });
+  $(`op-${tab}`).addEventListener("change", e => { S.rvf[tab].op = e.target.checked; render(); });
+  document.querySelector(`[data-mon="${tab}"]`).addEventListener("click", e => { const b = e.target.closest("button"); if (b){ S.rvf[tab].mon = b.dataset.v; render(); } });
+}
 
 let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(render, 120); });
 
 // ---------- Arranque ----------
 (async function init(){
   const h = (location.hash || "").slice(1);
-  if (h === "lecaps" || h === "cer") S.prefs.tab = h;
+  const TABS = ["lecaps", "cer", "tamar", "dl", "be", "cedears", "acciones"];
+  if (TABS.includes(h)) S.prefs.tab = h;
+  if (!TABS.includes(S.prefs.tab)) S.prefs.tab = "lecaps";
   pintarControles(); mostrarTab(S.prefs.tab);
   await cargarFeriados();
   pintarControles(); render();
-  await Promise.allSettled([cargarPrecios(), cargarCer()]);
+  await Promise.allSettled([cargarPrecios(), cargarCer(), cargarTamar(), cargarTc()]);
   pintarEditor(S.prefs.tab); render(); programar();
   setInterval(pintarEstado, 30000);
+  cargarCinta();
+  setInterval(() => { if (S.prefs.vivo) cargarCinta(); }, 30000);   // la cinta se refresca cada 30 s
 })();
 })();
 </script>
