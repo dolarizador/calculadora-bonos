@@ -103,6 +103,7 @@ select,input[type=date],input[type=number],input[type=text]{background:var(--sur
 .cardhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:8px 16px}
 .note{color:var(--muted);font-size:.82rem;margin:0}
 .banner{padding:10px 14px;border-radius:8px;border:1px solid var(--neg);background:var(--neg-bg);font-size:.88rem}
+.banner.aviso{border-color:var(--flash);background:color-mix(in srgb,var(--flash) 18%,transparent)}
 
 /* CER aplicable */
 .cerbox{display:flex;flex-wrap:wrap;gap:12px 28px;align-items:flex-end}
@@ -927,10 +928,25 @@ function calcDl(liq){
 }
 
 // ---------- Datos remotos ----------
-async function getJSON(url, ms = 9000){
+async function getJSON(url, ms = 15000){
   const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), ms);
-  try { const r = await fetch(url, {signal: ctl.signal, cache: "no-store"}); if (!r.ok) throw new Error(r.status); return await r.json(); }
+  let r;
+  try { r = await fetch(url, {signal: ctl.signal, cache: "no-store"}); }
+  catch (e){ throw new Error(e.name === "AbortError" ? "timeout" : "red"); }   // "red" = sin conexión o bloqueado por el navegador (CORS)
   finally { clearTimeout(to); }
+  if (!r.ok) throw new Error("http " + r.status);
+  try { return await r.json(); } catch { throw new Error("formato"); }
+}
+// Por qué falló una consulta, en castellano
+function motivo(m){
+  if (!m) return "";
+  if (m === "red") return "el navegador no pudo conectarse (sin internet o acceso bloqueado por el navegador)";
+  if (m === "timeout") return "data912 tardó demasiado en responder";
+  if (m === "http 429") return "data912 cortó por demasiadas consultas; bajo la frecuencia sola";
+  if (m.startsWith("http 5")) return "data912 está con problemas (" + m.replace("http ", "error ") + ")";
+  if (m.startsWith("http")) return "data912 respondió " + m.replace("http ", "error ");
+  if (m === "formato") return "data912 devolvió algo que no son precios";
+  return m;
 }
 async function cargarFeriados(){
   const y0 = Math.min(+hoyAR().slice(0,4), ...[...S.cer, ...S.tamar].filter(i => i.e).map(i => +i.e.slice(0,4)));
@@ -977,8 +993,13 @@ async function cargarTamar(){
 async function cargarPrecios(){
   const res = await Promise.allSettled(URLS_PRECIOS.map(u => getJSON(u)));
   const ok = res.filter(r => r.status === "fulfilled" && Array.isArray(r.value));
-  S.hora = horaAR();
-  if (!ok.length){ S.estado = "error"; return; }
+  if (!ok.length){
+    S.fallos = (S.fallos || 0) + 1;
+    S.errPrecios = (res.find(r => r.status === "rejected")?.reason?.message) || "formato";
+    S.estado = Object.keys(S.precios).length ? "cache" : "error";   // si hay precios anteriores, los sigo mostrando
+    return;
+  }
+  S.fallos = 0; S.errPrecios = null; S.hora = horaAR();
   const nuevos = {};
   ok.forEach(r => r.value.forEach(q => { if (q && q.symbol) nuevos[q.symbol] = q; }));
   const f = S.prefs.fuente, todos = [...S.lecaps, ...S.cer, ...S.tamar, ...S.dl]; S.movidos = new Set(); S.movDir = {};
@@ -989,7 +1010,14 @@ async function cargarPrecios(){
   if (S.movidos.size) S.ultMov = {hora: S.hora, t: [...S.movidos]};
   S.prev = Object.fromEntries(todos.map(i => [i.t, nuevos[i.t] ? nuevos[i.t][f] : undefined]));
   S.precios = nuevos; S.estado = "ok";
+  S.cacheT = Date.now();
+  store.set("cb-precios", {t: S.cacheT, p: nuevos});            // última foto buena, por si después falla
 }
+function cargarCachePrecios(){
+  const c = store.get("cb-precios", null);
+  if (c && c.p && Object.keys(c.p).length){ S.precios = c.p; S.cacheT = c.t; S.estado = "cache"; }
+}
+const fechaHora = t => new Date(t).toLocaleString("es-AR", {timeZone: TZ, day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit", hour12:false});
 async function cargarRV(tab){
   try {
     const arr = await getJSON(URL_RV[tab], 10000);
@@ -1005,9 +1033,15 @@ async function refrescar(){
   if (Date.now() - S.tcVivoT > 30000) tareas.push(cargarTcVivo());   // el mayorista se consulta cada 30 s como mucho
   await Promise.allSettled(tareas); render();
 }
+// Frecuencia: 10 s con la rueda abierta, 60 s con el mercado cerrado; si falla, espera cada vez más (hasta 2 min)
+function proximaEspera(){
+  const base = mercadoAbierto() ? 10000 : 60000;
+  return S.fallos ? Math.min(120000, Math.max(base, 15000 * 2 ** (S.fallos - 1))) : base;
+}
 function programar(){
-  clearInterval(S.timer);
-  S.timer = setInterval(refrescar, 10000);                     // se actualiza solo cada 10 s
+  clearTimeout(S.timer);
+  const ciclo = async () => { if (!document.hidden) await refrescar(); S.timer = setTimeout(ciclo, proximaEspera()); };   // pestaña oculta: no consulta
+  S.timer = setTimeout(ciclo, proximaEspera());
   pintarEstado();
 }
 
@@ -1021,13 +1055,17 @@ function mercadoAbierto(){
 function pintarEstado(){
   $("dotVivo").className = "dot" + (S.estado === "error" ? " err" : S.estado === "ok" ? " on" : "");
   $("txtVivo").textContent = S.estado === "cargando" ? "Conectando…" :
-    S.estado === "error" ? `Sin precios en vivo · ${S.hora || ""}` :
+    S.estado === "error" ? "Sin precios" :
+    S.estado === "cache" ? `Precios guardados · ${S.cacheT ? fechaHora(S.cacheT) : ""}` :
     `En vivo · ${S.hora}`;
   const ab = mercadoAbierto();
   $("chipMercado").innerHTML = `Mercado <b class="${ab ? "up" : ""}">${ab ? "abierto" : "cerrado"}</b>`;
   const b = $("banner");
-  b.hidden = S.estado !== "error";
-  b.textContent = "No pude leer los precios de data912 desde este navegador. Podés escribir los precios a mano en la columna Precio.";
+  b.hidden = !(S.estado === "error" || (S.estado === "cache" && S.errPrecios));
+  b.classList.toggle("aviso", S.estado === "cache");
+  b.textContent = S.estado === "cache"
+    ? `No pude actualizar los precios: ${motivo(S.errPrecios)}. Muestro los últimos guardados (${fechaHora(S.cacheT)}) y sigo reintentando.`
+    : `No pude leer los precios de data912: ${motivo(S.errPrecios)}. Podés escribir los precios a mano en la columna Precio; sigo reintentando.`;
 }
 
 // ---------- Render: indicadores ----------
@@ -1770,11 +1808,17 @@ let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTime
   pintarControles(); mostrarTab(S.prefs.tab);
   await cargarFeriados();
   pintarControles(); render();
+  cargarCachePrecios(); render();                              // muestra al toque la última foto guardada
   await Promise.allSettled([cargarPrecios(), cargarCer(), cargarTamar(), cargarTc()]);
   pintarEditor(S.prefs.tab); render(); programar();
   setInterval(pintarEstado, 30000);
   cargarCinta();
-  setInterval(cargarCinta, 30000);   // la cinta se refresca cada 30 s
+  let cintaT = Date.now();
+  setInterval(() => {                                          // cinta: cada 30 s con rueda abierta, cada 5 min si está cerrada
+    if (document.hidden || (!mercadoAbierto() && Date.now() - cintaT < 300000)) return;
+    cintaT = Date.now(); cargarCinta();
+  }, 30000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refrescar(); });
 })();
 })();
 </script>
